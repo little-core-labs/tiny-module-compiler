@@ -101,6 +101,7 @@ class Compiler extends Pool {
           sourceMap: false, // @TODO: unsupported for now
           externals: opts.externals || [],
           filename: basename,
+          cache: false,
           v8cache: false, // we'll do this manually
           minify: false, // if `true` this can break cached builds
           quiet: false !== opts.quiet, // @TODO: `false` in "debug"
@@ -108,9 +109,11 @@ class Compiler extends Pool {
           if (err) { return next(err) }
 
           const src = Buffer.from(Module.wrap(result.code))
-          const size = Buffer.from(varint.encode(src.length))
           const script = new vm.Script(src.toString(), { filename: basename })
           const cache = script.createCachedData()
+          // borrowed from: https://github.com/OsamaAbbas/bytenode/blob/master/index.js#L56
+          const len = cache.slice(8, 12).reduce((y, x, i) => y += x * Math.pow(256, i), 0)
+          const size = Buffer.from(varint.encode(len))
 
           objects.set(targetName, Buffer.concat([
             magic.OBJECT_BYTES, size, cache

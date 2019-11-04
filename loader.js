@@ -70,7 +70,12 @@ class Loader extends Pool {
       path.join(dirname, 'node_modules')
     )
 
-    const context = Object.assign({ }, global)
+    const context = Object.assign({
+      get __dirname() { return dirname },
+      get __filename() { return filename },
+      get exports() { return context.module.exports },
+      get require() { return context.module.require },
+    }, global)
 
     // globals
     Object.assign(context, opts.global, { console, Buffer, process })
@@ -112,7 +117,7 @@ class Loader extends Pool {
         const script = new vm.Script(String(buffer), { filename })
         script.runInNewContext(context)
         context.module.loaded = true
-        callback(null, context.module.exports)
+        return callback(null, context.module.exports)
       } catch (err) {
         void err
       }
