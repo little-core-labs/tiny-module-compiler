@@ -7,7 +7,7 @@ const Batch = require('batch')
 const raf = require('random-access-file')
 
 /**
- * @TODO
+ * The `Archiver` represents
  * @class
  * @extends Pool
  */
@@ -89,7 +89,10 @@ class Archiver extends Pool {
         })
       }
 
-      batch.end(callback)
+      batch.end((err) => {
+        if (err) { return callback(err) }
+        target.close()
+      })
     })
   }
 }

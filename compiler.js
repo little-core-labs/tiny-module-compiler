@@ -85,6 +85,7 @@ class Compiler extends Pool {
 
     const { targets } = this
     const objects = new Map()
+    const assets = new Map()
     const writes = new Batch()
     const batch = new Batch()
 
@@ -98,15 +99,31 @@ class Compiler extends Pool {
       batch.push((next) => {
         // assume target is on disk for now
         errback(ncc(filename, {
-          sourceMap: false, // @TODO: unsupported for now
+          sourceMap: opts.map || false,
           externals: opts.externals || [],
-          filename: basename,
-          cache: false,
+          cache: opts.cache || false,
           v8cache: false, // we'll do this manually
           minify: false, // if `true` this can break cached builds
           quiet: false !== opts.quiet, // @TODO: `false` in "debug"
         }), (err, result) => {
           if (err) { return next(err) }
+          for (const name in result.assets) {
+            assets.set(name, result.assets[name])
+          }
+
+          if (opts.debug) {
+            assets.set(path.basename(targetName) + '.debug.compiled.js', {
+              source: Buffer.from(result.code),
+              permissions: 438 // 0666
+            })
+          }
+
+          if (result.map) {
+            assets.set(path.basename(targetName) + '.map', {
+              source: Buffer.from(result.map),
+              permissions: 438 // 0666
+            })
+          }
 
           const src = Buffer.from(Module.wrap(result.code))
           const script = new vm.Script(src.toString(), { filename: basename })
@@ -145,7 +162,7 @@ class Compiler extends Pool {
 
       writes.end((err) => {
         if (err) { return callback(err) }
-        callback(null, objects)
+        callback(null, objects, assets)
       })
     })
   }
