@@ -7,7 +7,6 @@ const varint = require('varint')
 const Batch = require('batch')
 const magic = require('./magic')
 const path = require('path')
-const raf = require('random-access-file')
 const ram = require('random-access-memory')
 const v8 = require('v8')
 const vm = require('vm')
@@ -32,7 +31,6 @@ class Loader extends Pool {
     }
 
     super(Target)
-    this.storage = opts.storage || raf
   }
 
   /**
