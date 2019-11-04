@@ -1,4 +1,5 @@
 const { Loader } = require('./loader')
+const assert = require('nanoassert')
 
 /**
  * @TODO
