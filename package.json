@@ -1,0 +1,54 @@
+{
+  "name": "tiny-module-compiler",
+  "version": "0.0.0",
+  "description": "Compile, archive, and load compiled modules leveraging v8 cached data.",
+  "main": "index.js",
+  "scripts": {
+    "test": "nyc -x fixtures -x example.js -x bin -x tmp tape test/*.js"
+  },
+  "bin": {
+    "tmc": "bin/tmc"
+  },
+  "keywords": [
+    "compile",
+    "v8",
+    "modules",
+    "archive",
+    "cache",
+    "tiny",
+    "box",
+    "load"
+  ],
+  "author": "Joseph Werle <josehp.werle@gmail.com>",
+  "license": "MIT",
+  "dependencies": {
+    "@zeit/ncc": "^0.20.5",
+    "batch": "^0.6.1",
+    "debug": "^4.1.1",
+    "glob": "^7.1.5",
+    "minimist": "^1.2.0",
+    "multi-random-access": "^2.1.1",
+    "nanoassert": "^2.0.0",
+    "nanoresource": "^1.2.0",
+    "nanoresource-pool": "^0.3.1",
+    "nanoresource-ready": "^0.1.0",
+    "protocol-buffers": "^4.1.0",
+    "random-access-file": "^2.1.3",
+    "random-access-memory": "^3.1.1",
+    "rimraf": "^3.0.0",
+    "tinybox": "0.0.0",
+    "varint": "^5.0.0"
+  },
+  "directories": {
+    "test": "test"
+  },
+  "devDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/little-core-labs/tiny-module-compiler.git"
+  },
+  "bugs": {
+    "url": "https://github.com/little-core-labs/tiny-module-compiler/issues"
+  },
+  "homepage": "https://github.com/little-core-labs/tiny-module-compiler#readme"
+}

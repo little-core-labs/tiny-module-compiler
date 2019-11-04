@@ -1,0 +1,80 @@
+#!/usr/bin/env node
+
+const { compile, archive } = require('../')
+const { version } = require('../package.json')
+const minimist = require('minimist')
+const debug = require('debug')('tiny-module-compiler')
+
+const argv = minimist(process.argv.slice(2), {
+  boolean: [
+    'help',
+    'debug',
+    'version',
+
+    'archive',
+    'compile',
+  ],
+
+  string: [
+    'output'
+  ],
+
+  array: [
+    'external'
+  ],
+
+  alias: {
+    // bools
+    h: 'help',
+    D: 'debug',
+    V: 'version',
+
+    // main
+    a: 'archive',
+    c: 'compile',
+
+    // config
+    e: 'external',
+    o: 'output',
+  }
+})
+
+const usage = `usage: tmo [-achDV] [options] ...input`
+
+if (argv.version) {
+  console.log(version)
+  process.exit(0)
+}
+
+if (argv.debug) {
+  require('debug').enable(`tiny-module-compiler*,${process.env.DEBUG || ''}`)
+}
+
+if (argv.help || 0 === argv._.length) {
+  if (argv.help) {
+    console.log(usage)
+    process.exit(0)
+  } else {
+    console.error(usage)
+    process.exit(1)
+  }
+}
+
+if (argv.compile || !argv.archive) { // default
+  argv.externals = [ ].concat(argv.external).filter(Boolean)
+  compile(argv._, argv, (err, objects) => {
+    if (err) {
+      console.error('error:', err.message)
+      debug(err)
+    }
+  })
+}
+
+if (!argv.compile && argv.archive) {
+  archive(argv._[0], argv._.slice(1), argv, (err) => {
+    if (err) {
+      console.error('error:', err.message)
+      debug(err)
+    }
+  })
+}

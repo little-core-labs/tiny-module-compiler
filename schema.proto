@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+message Archive {
+  Index index = 1;
+
+  message Index {
+    uint32 size = 1;
+    repeated Entry entries = 2;
+    message Entry {
+      uint32 id = 1;
+      string filename = 2;
+    }
+  }
+}
