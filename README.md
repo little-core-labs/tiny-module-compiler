@@ -35,6 +35,23 @@ tmc.compile('*.js', (err, objects) => {
 })
 ```
 
+### Command Line
+
+```sh
+$ tmc -c *.js -o build/ -x sodium-native --debug --source-map
+$ tmc -a build/module.a build/*.js
+```
+
+```js
+const tmc = require('tiny-module-compiler')
+
+tmc.load('build/module.a', (err, archive) => {
+  // `archive` is an object that maps a compiled module filename
+  // to its module's exports
+  console.log(archive)
+})
+```
+
 ## API
 
 ### `archive(target, objects[, opts], callback)`
