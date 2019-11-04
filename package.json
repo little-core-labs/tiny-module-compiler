@@ -1,6 +1,6 @@
 {
   "name": "tiny-module-compiler",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "Compile, archive, and load compiled modules leveraging v8 cached data.",
   "main": "index.js",
   "scripts": {
