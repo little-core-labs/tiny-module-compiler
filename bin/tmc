@@ -90,9 +90,7 @@ if (argv.compile || !argv.archive) { // default
 
   if (argv.output && 'string' === typeof argv.output) {
     argv.output = path.resolve(argv.output)
-    if (1 === argv._.length) {
-      mkdirp.sync(argv.output)
-    } else {
+    if (argv._.length > 1) {
       mkdirp.sync(path.dirname(argv.output))
     }
   }
@@ -107,10 +105,14 @@ if (argv.compile || !argv.archive) { // default
     if (argv['copy-assets']) {
       const writes = new Batch()
       for (let [ filename, asset ] of assets) {
-        filename = path.join(path.dirname(argv.output), filename)
+        if (objects.size > 1) {
+          filename = path.join(argv.output, filename)
+        } else {
+          filename = path.join(path.dirname(argv.output), filename)
+        }
         writes.push((next) => {
           const opts = { mode: asset.permissions }
-          console.warn(' warn: writing %s (%s)',
+          console.warn(' warn: writing asset %s (%s)',
             filename.replace(process.cwd(), '.'),
             prettyBytes(asset.source.length),
             opts.mode.toString(8))
