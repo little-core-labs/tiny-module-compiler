@@ -14,6 +14,7 @@ $ npm install tiny-module-compiler
 ## Status
 
 > **Development/Testing/Documentation**
+
 > [![Actions Status](https://github.com/little-core-labs/tiny-module-compiler/workflows/Node%20CI/badge.svg)](https://github.com/little-core-labs/tiny-module-compiler/actions)
 
 <a name="usage"></a>
