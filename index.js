@@ -85,7 +85,11 @@ function compile(target, opts, callback) {
     for (const file of files) {
       try {
         const pathspec = require.resolve(path.resolve(opts.cwd, file))
-        batch.push((next) => compiler.target(pathspec, opts).open(next))
+        const copts = Object.assign({}, opts)
+        if (copts.output && files.length > 1) {
+          copts.output = path.join(copts.output, path.basename(pathspec))
+        }
+        batch.push((next) => compiler.target(pathspec, copts).open(next))
       } catch (err) {
         return callback(err)
       }

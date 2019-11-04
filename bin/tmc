@@ -90,7 +90,11 @@ if (argv.compile || !argv.archive) { // default
 
   if (argv.output && 'string' === typeof argv.output) {
     argv.output = path.resolve(argv.output)
-    mkdirp.sync(path.dirname(argv.output))
+    if (1 === argv._.length) {
+      mkdirp.sync(argv.output)
+    } else {
+      mkdirp.sync(path.dirname(argv.output))
+    }
   }
 
   compile(argv._, argv, (err, objects, assets) => {
@@ -119,6 +123,7 @@ if (argv.compile || !argv.archive) { // default
         if (err) {
           console.error('error:', err.message)
           debug(err)
+          return process.exit(1)
         }
       })
     }
@@ -130,6 +135,7 @@ if (!argv.compile && argv.archive) {
     if (err) {
       console.error('error:', err.message)
       debug(err)
+      return process.exit(1)
     }
   })
 }
