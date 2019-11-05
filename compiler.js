@@ -8,7 +8,6 @@ const magic = require('./magic')
 const ready = require('nanoresource-ready')
 const path = require('path')
 const raf = require('random-access-file')
-const ram = require('random-access-memory')
 const ncc = require('@zeit/ncc')
 const vm = require('vm')
 

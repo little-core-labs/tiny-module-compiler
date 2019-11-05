@@ -7,7 +7,7 @@ const varint = require('varint')
 const Batch = require('batch')
 const magic = require('./magic')
 const path = require('path')
-const ram = require('random-access-memory')
+const raf = require('random-access-file')
 const v8 = require('v8')
 const vm = require('vm')
 
@@ -119,11 +119,13 @@ class Loader extends Pool {
         context.module.loaded = true
         return callback(null, context.module.exports)
       } catch (err) {
-        void err
+        if (false === err instanceof SyntaxError) {
+          return callback(err)
+        }
       }
 
       // try as archive
-      const archive = new TinyBox(ram(buffer))
+      const archive = new TinyBox(raf(filename))
       archive.get('index', (err, result) => {
         if (err) {
           return callback(new Error('Unknown file type loaded.'))
