@@ -108,7 +108,10 @@ class Loader extends Pool {
             contextModule.require,
             contextModule,
             filename,
-            dirname)
+            dirname,
+            process,
+            global,
+            Buffer)
 
           contextModule.loaded = true
         }
@@ -162,9 +165,9 @@ class Loader extends Pool {
       const size = varint.decode(buffer)
       const stub = '"' + "\u200b".repeat(size - 2) + '"'
       const cachedData = buffer.slice(varint.decode.bytes)
-      const script = new vm.Script(stub, { cachedData })
 
       try {
+        const script = new vm.Script(stub, { filename, cachedData })
         const init = script.runInThisContext()
         if ('function' === typeof init) {
           init(
@@ -172,7 +175,10 @@ class Loader extends Pool {
             contextModule.require,
             contextModule,
             filename,
-            dirname)
+            dirname,
+            process,
+            global,
+            Buffer)
 
           contextModule.loaded = true
         }
