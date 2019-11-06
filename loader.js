@@ -100,10 +100,20 @@ class Loader extends Pool {
 
       // try as regular script
       try {
-        const script = new vm.Script(String(buffer), { filename })
-        script.runInThisContext()
-        contextModule.loaded = true
-        return callback(null, contextModule.exports)
+        const script = new vm.Script(Module.wrap(buffer), { filename })
+        const init = script.runInThisContext()
+        if ('function' === typeof init) {
+          init(
+            contextModule.exports,
+            contextModule.require,
+            contextModule,
+            filename,
+            dirname)
+
+          contextModule.loaded = true
+        }
+
+        return callback(null, contextModule.exports, contextModule.loaded)
       } catch (err) {
         if (false === err instanceof SyntaxError) {
           return callback(err)
