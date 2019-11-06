@@ -91,7 +91,7 @@ class Archiver extends Pool {
 
       batch.end((err) => {
         if (err) { return callback(err) }
-        target.close()
+        target.close(callback)
       })
     })
   }
