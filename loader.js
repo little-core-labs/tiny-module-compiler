@@ -101,7 +101,7 @@ class Loader extends Pool {
       // try as regular script
       try {
         const script = new vm.Script(String(buffer), { filename })
-        script.runInNewContext(context)
+        script.runInThisContext()
         contextModule.loaded = true
         return callback(null, contextModule.exports)
       } catch (err) {
