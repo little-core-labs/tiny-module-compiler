@@ -7,7 +7,6 @@ compile('fixtures/module/*.js', (err, objects) => {
     if (err) { return onfatal(err) }
     load('fixtures/module/module.a', (err, ar) => {
       if (err) { return onfatal(err) }
-      console.log(ar)
     })
   })
 })

@@ -66,26 +66,12 @@ class Loader extends Pool {
     const target = this.resource(filename, opts)
     const dirname = path.dirname(filename)
 
+    const contextModule = new Module(filename, module)
     const contextRequire = Module.createRequireFromPath(
       path.join(dirname, 'node_modules')
     )
 
-    const context = Object.assign({
-      get __dirname() { return dirname },
-      get __filename() { return filename },
-      get exports() { return context.module.exports },
-      get require() { return context.module.require },
-    }, global)
-
-    // globals
-    Object.assign(context, opts.global, { console, Buffer, process })
-    Object.assign(context, {
-      module: new Module(
-        filename,
-        opts.module && opts.module.parent || new Module('', null))
-    })
-
-    Object.assign(context.module, {
+    Object.assign(contextModule, {
       filename,
       require: contextRequire,
     })
@@ -116,8 +102,8 @@ class Loader extends Pool {
       try {
         const script = new vm.Script(String(buffer), { filename })
         script.runInNewContext(context)
-        context.module.loaded = true
-        return callback(null, context.module.exports)
+        contextModule.loaded = true
+        return callback(null, contextModule.exports)
       } catch (err) {
         if (false === err instanceof SyntaxError) {
           return callback(err)
@@ -164,24 +150,24 @@ class Loader extends Pool {
       buffer = buffer.slice(4)
 
       const size = varint.decode(buffer)
-      const stub = '"' + "\u000b".repeat(size - 2) + '"'
+      const stub = '"' + "\u200b".repeat(size - 2) + '"'
       const cachedData = buffer.slice(varint.decode.bytes)
       const script = new vm.Script(stub, { cachedData })
 
       try {
-        const init = script.runInNewContext(context)
+        const init = script.runInThisContext()
         if ('function' === typeof init) {
           init(
-            context.module.exports,
-            context.module.require,
-            context.module,
+            contextModule.exports,
+            contextModule.require,
+            contextModule,
             filename,
             dirname)
 
-          context.module.loaded = true
+          contextModule.loaded = true
         }
 
-        done(null, context.module.exports, context.module.loaded)
+        done(null, contextModule.exports, contextModule.loaded)
       } catch (err) {
         return done(err)
       }
