@@ -2,8 +2,8 @@ const { Module } = require('module')
 const { Target } = require('./target')
 const { Pool } = require('nanoresource-pool')
 const messages = require('./messages')
-const TinyBox = require('tinybox')
 const varint = require('varint')
+const TinyBox = require('tinybox')
 const Batch = require('batch')
 const magic = require('./magic')
 const path = require('path')
@@ -13,6 +13,41 @@ const vm = require('vm')
 
 // @TODO
 v8.setFlagsFromString('--no-lazy')
+
+/**
+ * @param {Module} mod
+ */
+function makeRequireFunction(mod) {
+  const extensions = Module._extensions
+  const cache = Module._cache
+  const main = process.mainModule
+
+  Object.assign(resolve, {
+    paths
+  })
+
+  return Object.assign(requireFunction, {
+    extensions,
+    resolve,
+    cache,
+    main,
+  })
+
+  // https://github.com/zertosh/v8-compile-cache/blob/master/v8-compile-cache.js#L160
+  function requireFunction(id) {
+    return mod.require(id)
+  }
+
+  // https://github.com/zertosh/v8-compile-cache/blob/master/v8-compile-cache.js#L165
+  function resolve(request, options) {
+    return Module._resolveFilename(request, mod, false, options)
+  }
+
+  // https://github.com/zertosh/v8-compile-cache/blob/master/v8-compile-cache.js#L173
+  function paths(request) {
+    return Module._resolveLookupPaths(request, mod, true)
+  }
+}
 
 /**
  * @TODO
@@ -63,17 +98,18 @@ class Loader extends Pool {
 
     filename = path.resolve(filename)
 
-    const target = this.resource(filename, opts)
     const dirname = path.dirname(filename)
+    const target = this.resource(filename, opts)
+    const paths = Module._nodeModulePaths(filename)
 
-    const contextModule = new Module(filename, module)
-    const contextRequire = Module.createRequireFromPath(
-      path.join(dirname, 'node_modules')
-    )
+    const contextModule = new Module(filename)
+    const contextRequire = 'function' === typeof Module.createRequireFromPath
+      ? Module.createRequireFromPath(filename)
+      : makeRequireFunction(contextModule)
 
     Object.assign(contextModule, {
       filename,
-      require: contextRequire,
+      paths
     })
 
     target.ready(onopen)
@@ -105,7 +141,7 @@ class Loader extends Pool {
         if ('function' === typeof init) {
           init(
             contextModule.exports,
-            contextModule.require,
+            contextRequire,
             contextModule,
             filename,
             dirname,
@@ -172,7 +208,7 @@ class Loader extends Pool {
         if ('function' === typeof init) {
           init(
             contextModule.exports,
-            contextModule.require,
+            contextRequire,
             contextModule,
             filename,
             dirname,

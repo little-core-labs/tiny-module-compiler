@@ -17,6 +17,11 @@ $ npm install tiny-module-compiler
 
 > [![Actions Status](https://github.com/little-core-labs/tiny-module-compiler/workflows/Node%20CI/badge.svg)](https://github.com/little-core-labs/tiny-module-compiler/actions)
 
+## Supported Node Version
+
+Currently `node10` has full support from this module. `node12` is known
+to have some issues when loading compiled modules.
+
 <a name="usage"></a>
 ## Usage
 
@@ -90,10 +95,15 @@ compile('{left,right}.js', (err, objects) => {
 
 ## See Also
 
-- [@zeit/ncc][ncc]
 - [tinybox][tinybox]
+- [@zeit/ncc][ncc]
 - [glob][glob]
 
+## Prior Art
+
+- https://github.com/zeit/ncc
+- https://github.com/OsamaAbbas/bytenode
+- https://github.com/zertosh/v8-compile-cache
 
 ## License
 

@@ -125,8 +125,19 @@ class Compiler extends Pool {
           }
 
           const src = Buffer.from(Module.wrap(result.code))
-          const script = new vm.Script(src.toString(), { filename: basename })
-          const cache = script.createCachedData()
+          const script = new vm.Script(src.toString(), {
+            produceCachedData: true,
+            filename: basename
+          })
+
+          const cache = 'function' === typeof script.createCachedData
+            ? script.createCachedData()
+            : script.cachedData
+
+          if (!cache) {
+            return next(new Error('Unable to capture compiled cached data.'))
+          }
+
           // borrowed from: https://github.com/OsamaAbbas/bytenode/blob/master/index.js#L56
           const len = cache.slice(8, 12).reduce((y, x, i) => y += x * Math.pow(256, i), 0)
           const size = Buffer.from(varint.encode(len))
