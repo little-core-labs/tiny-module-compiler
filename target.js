@@ -28,6 +28,7 @@ class Target extends Resource {
       'Filename must be a string.')
 
     this.filename = filename
+    this.shouldCloseStorage = false
 
     if ('function' === typeof opts.storage) {
       this.storage = opts.storage(this.filename, opts)
@@ -35,6 +36,7 @@ class Target extends Resource {
       this.storage = opts.storage
     } else {
       this.storage = raf(this.filename, opts)
+      this.shouldCloseStorage = true
     }
   }
 
@@ -67,6 +69,10 @@ class Target extends Resource {
    * @param {Function} callback
    */
   _close(callback) {
+    if (!this.shouldCloseStorage) {
+      return process.nextTick(callback, null)
+    }
+
     // istanbul ignore next
     if (this.storage.closed) {
       return process.nextTick(callback, null)

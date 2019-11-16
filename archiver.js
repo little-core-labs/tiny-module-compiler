@@ -66,7 +66,7 @@ class Archiver extends Resource {
 
     const steps = new Batch().concurrency(1)
 
-    if (!opts.storage) {
+    if (!opts.storage && false !== opts.truncate) {
       steps.push((done) => {
         fs.access(filename, (err) => {
           // istanbul ignore next
@@ -89,14 +89,39 @@ class Archiver extends Resource {
       const entries = filenames.sort().map((filename, id) => ({ id, filename }))
       const storage = opts.storage || this.storage(filename)
       const batch = new Batch()
-      const size = entries.length
       const box = new TinyBox(storage)
 
       const versions = messages.Versions.encode(process.versions)
-      const index = messages.Archive.Index.encode({ size, entries })
 
       batch.push((next) => box.put('versions', versions, next))
-      batch.push((next) => box.put('index', index, next))
+      batch.push((next) => {
+        box.get('index', (err, result) => {
+          const prev = result && result.value
+            ? messages.Archive.Index.decode(result.value)
+            : null
+
+          let size = entries.length
+
+          if (prev && prev.entries) {
+            const existing = new Set(filenames)
+            for (const entry of prev.entries) {
+              if (!existing.has(entry.filename)) {
+                entries.unshift(entry)
+                size++
+              }
+            }
+          }
+
+          let i = 0
+          for (const entry of entries) {
+            entry.id = i++
+          }
+
+          const index = messages.Archive.Index.encode({ size, entries })
+
+          box.put('index', index, next)
+        })
+      })
 
       for (const [ objectPath, objectBuffer ] of objects) {
         batch.push((next) => {

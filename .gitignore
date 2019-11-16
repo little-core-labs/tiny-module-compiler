@@ -63,3 +63,4 @@ package-lock.json
 *.tmo
 *.out
 *.a
+test/fixtures/build

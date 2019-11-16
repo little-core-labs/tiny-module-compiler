@@ -1,5 +1,6 @@
 const path = require('path')
 const test = require('tape')
+const ram = require('random-access-memory')
 const raf = require('random-access-file')
 const fs = require('fs')
 
@@ -152,6 +153,69 @@ test('compiler.compile(callback, opts) - with debug', (t) => {
       t.equal(1, assets.size, 'assets.size')
       t.ok(Buffer.isBuffer(source), 'asset.source is buffer')
       t.equal('number', typeof permissions, 'asset.permissions is number')
+      t.end()
+    })
+  })
+})
+
+test('compiler.compile(opts, callback) - custom storage', (t) => {
+  const filename = path.resolve(__dirname, 'fixtures', 'simple.js')
+  const destname = filename.replace(process.cwd() + path.sep, '') + '.out'
+  const compiler = new Compiler()
+  const storage = ram()
+
+  compiler.target(filename).ready(() => {
+    compiler.compile({ storage: () => storage }, (err, objects) => {
+      t.error(err, 'callback(err = null)')
+      const buffer = objects.get(destname)
+      t.ok(0 === Buffer.compare(storage.toBuffer(), buffer))
+      t.end()
+    })
+  })
+})
+
+test('compiler.compile(opts, callback) - custom cwd', (t) => {
+  const filename = path.resolve(__dirname, 'fixtures', 'simple.js')
+  const destname = filename.replace(process.cwd() + path.sep, '') + '.out'
+  const compiler = new Compiler({ cwd: path.join(__dirname, 'fixtures') })
+  const storage = ram()
+
+  compiler.target(filename).ready(() => {
+    compiler.compile((err, objects) => {
+      t.error(err, 'callback(err = null)')
+      t.equal(1, objects.size, 'objects.size')
+      t.equal(true, objects.has('simple.js.out'), 'simple.js.out')
+      t.end()
+    })
+  })
+})
+
+test('compiler.compile(opts, callback) - custom output', (t) => {
+  const filename = path.resolve(__dirname, 'fixtures', 'simple.js')
+  const destname = filename.replace(process.cwd() + path.sep, '') + '.out'
+  const compiler = new Compiler()
+  const storage = ram()
+
+  compiler
+    .target(filename, { output: path.join(__dirname, 'fixtures', 'build', 'simple.js') })
+    .ready(() => {
+      compiler.compile((err, objects) => {
+        t.error(err, 'callback(err = null)')
+        t.equal(1, objects.size, 'objects.size')
+        t.equal(true,
+          objects.has(path.join('test', 'fixtures', 'build', 'simple.js')), 'simple.js')
+        t.end()
+      })
+    })
+})
+
+test('compiler.compile(opts, callback) - bad output', (t) => {
+  const filename = path.resolve(__dirname, 'fixtures', 'simple.js')
+  const compiler = new Compiler()
+
+  compiler.target(filename, { output: {} }).ready(() => {
+    compiler.compile((err) => {
+      t.ok(err)
       t.end()
     })
   })

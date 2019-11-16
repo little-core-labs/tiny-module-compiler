@@ -12,17 +12,16 @@ const { Archiver } = require('./archiver')
 function archive(target, objects, opts, callback) {
   if ('function' === typeof opts) {
     callback = opts
-    opts = {}
   }
 
   if (!opts || 'object' !== typeof opts) {
     opts = {}
   }
 
-  const archiver = new Archiver(opts)
+  const archiver = new Archiver()
 
   archiver.ready(() => {
-    archiver.archive(target, objects, callback)
+    archiver.archive(target, objects, opts, callback)
   })
 }
 

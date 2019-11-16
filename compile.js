@@ -14,7 +14,6 @@ const glob = require('glob')
 function compile(target, opts, callback) {
   if ('function' === typeof opts) {
     callback = opts
-    opts = {}
   }
 
   if (!opts || 'object' !== typeof opts) {
@@ -32,15 +31,21 @@ function compile(target, opts, callback) {
   return compiler
 
   function onready(err) {
+    // istanbul ignore next
     if (err) { return callback(err) }
     if (Array.isArray(target)) {
       onfiles(null, target)
     } else {
-      glob(target, opts, onfiles)
+      try {
+        glob(target, opts, onfiles)
+      } catch (err) {
+        return callback(err)
+      }
     }
   }
 
   function onfiles(err, files) {
+    // istanbul ignore next
     if (err) { return callback(err) }
     if (!files || 0 === files.length) {
       return callback(new Error('Target does not exist.'))
@@ -63,6 +68,7 @@ function compile(target, opts, callback) {
     }
 
     batch.end((err) => {
+      // istanbul ignore next
       if (err) { return callback(err) }
       compiler.compile(opts, callback)
     })

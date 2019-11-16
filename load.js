@@ -2,7 +2,9 @@ const { Loader } = require('./loader')
 const assert = require('nanoassert')
 
 /**
- * @TODO
+ * Load module specified at `target` calling `callback(null, exports)` if the
+ * target is a node module, `callback(null, archive)` if the target is an
+ * archive, or `callback(err)` if an error occurs.
  * @param {String} target
  * @param {?(Object)} opts
  * @param {Function} callback
@@ -11,7 +13,6 @@ const assert = require('nanoassert')
 function load(target, opts, callback) {
   if ('function' === typeof opts) {
     callback = opts
-    opts = {}
   }
 
   if (!opts || 'object' !== typeof opts) {
@@ -23,7 +24,7 @@ function load(target, opts, callback) {
   assert('function' === typeof callback, 'Callback must be a function.')
 
   const loader = new Loader(opts)
-  return loader.load(target, callback)
+  return loader.load(target, opts, callback)
 }
 
 /**

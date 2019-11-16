@@ -17,6 +17,12 @@ const errback = (p, cb) => void p.then((r) => cb(null, r), cb).catch(cb)
 const noop = () => void 0
 
 /**
+ * Default extension for compiler target output file names.
+ * @private
+ */
+const DEFAULT_OUTPUT_EXTNAME = '.out'
+
+/**
  * The `Compiler` class represents a container of compile targets
  * that can be compiled into a single binary file containing
  * v8 cache data and header information about the compiled output.
@@ -83,7 +89,7 @@ class Compiler extends Pool {
     }
 
     const target = Object.assign(this.resource(filename, opts), {
-      output: opts.output || filename + '.out'
+      output: opts.output || (filename + DEFAULT_OUTPUT_EXTNAME)
     })
 
     if (false !== opts.autoOpen) {
@@ -125,78 +131,82 @@ class Compiler extends Pool {
     const writes = new Batch()
     const batch = new Batch()
 
-    for (const target of targets) {
-      const { filename } = target
-      const extname = path.extname(filename)
-      const basename = path.basename(filename)
-      const targetName = path.resolve(target.output)
-        .replace(path.join(path.resolve(this.cwd), path.sep), '')
+    try {
+      for (const target of targets) {
+        const { filename } = target
+        const extname = path.extname(filename)
+        const basename = path.basename(filename)
+        const targetName = path.resolve(target.output)
+          .replace(path.join(path.resolve(this.cwd), path.sep), '')
 
-      batch.push((next) => {
-        // assume target is on disk for now
-        errback(ncc(filename, {
-          sourceMap: opts.map || false,
-          externals: opts.externals || [],
-          cache: opts.cache || false,
-          v8cache: false, // we'll do this manually
-          minify: false, // if `true` this can break cached builds
-          quiet: false !== opts.quiet, // @TODO: `false` in "debug"
-        }), (err, result) => {
-          // istanbul ignore next
-          if (err) { return next(err) }
-          for (const name in result.assets) {
-            assets.set(
-              path.dirname(targetName) + path.sep + name,
-              result.assets[name])
-          }
+        batch.push((next) => {
+          // assume target is on disk for now
+          errback(ncc(filename, {
+            sourceMap: opts.map || false,
+            externals: opts.externals || [],
+            cache: opts.cache || false,
+            v8cache: false, // we'll do this manually
+            minify: false, // if `true` this can break cached builds
+            quiet: false !== opts.quiet, // @TODO: `false` in "debug"
+          }), (err, result) => {
+            // istanbul ignore next
+            if (err) { return next(err) }
+            for (const name in result.assets) {
+              assets.set(
+                path.dirname(targetName) + path.sep + name,
+                result.assets[name])
+            }
 
-          if (opts.debug) {
-            assets.set(targetName + '.debug.compiled.js', {
-              source: Buffer.from(result.code),
-              permissions: 438 // 0666
+            if (opts.debug) {
+              assets.set(targetName + '.debug.compiled.js', {
+                source: Buffer.from(result.code),
+                permissions: 438 // 0666
+              })
+            }
+
+            if (result.map) {
+              assets.set(targetName + '.map', {
+                source: Buffer.from(result.map),
+                permissions: 438 // 0666
+              })
+            }
+
+            const src = Buffer.from(Module.wrap(result.code))
+            const script = new vm.Script(src.toString(), {
+              produceCachedData: true,
+              filename: basename
             })
-          }
 
-          if (result.map) {
-            assets.set(targetName + '.map', {
-              source: Buffer.from(result.map),
-              permissions: 438 // 0666
-            })
-          }
+            // istanbul ignore next
+            const cache = 'function' === typeof script.createCachedData
+              ? script.createCachedData()
+              : script.cachedData
 
-          const src = Buffer.from(Module.wrap(result.code))
-          const script = new vm.Script(src.toString(), {
-            produceCachedData: true,
-            filename: basename
+            // istanbul ignore next
+            if (!cache) {
+              return next(new Error('Unable to capture compiled cached data.'))
+            }
+
+            // borrowed from: https://github.com/OsamaAbbas/bytenode/blob/master/index.js#L56
+            const length = cache.slice(8, 12).reduce((y, x, i) => y += x * Math.pow(256, i), 0)
+            const versions = messages.Versions.encode(process.versions)
+
+            objects.set(targetName, Buffer.concat([
+              // header
+              magic.OBJECT_BYTES,
+              Buffer.from(varint.encode(versions.length)),
+              versions,
+              // body
+              Buffer.from(varint.encode(length)),
+              cache
+            ]))
+
+            target.close(next)
           })
-
-          // istanbul ignore next
-          const cache = 'function' === typeof script.createCachedData
-            ? script.createCachedData()
-            : script.cachedData
-
-          // istanbul ignore next
-          if (!cache) {
-            return next(new Error('Unable to capture compiled cached data.'))
-          }
-
-          // borrowed from: https://github.com/OsamaAbbas/bytenode/blob/master/index.js#L56
-          const length = cache.slice(8, 12).reduce((y, x, i) => y += x * Math.pow(256, i), 0)
-          const versions = messages.Versions.encode(process.versions)
-
-          objects.set(targetName, Buffer.concat([
-            // header
-            magic.OBJECT_BYTES,
-            Buffer.from(varint.encode(versions.length)),
-            versions,
-            // body
-            Buffer.from(varint.encode(length)),
-            cache
-          ]))
-
-          target.close(next)
         })
-      })
+      }
+    } catch (err) {
+      return callback(err)
     }
 
     batch.end((err) => {
@@ -208,10 +218,17 @@ class Compiler extends Pool {
           rimraf(filename, (err) => {
             // istanbul ignore next
             if (err) { return callback(err) }
-            const output = raf(filename)
+
+            const output = 'function' === typeof opts.storage
+              ? opts.storage(filename)
+              : raf(filename)
+
             output.write(0, object, (err) => {
               next(err)
-              output.close()
+
+              if ('function' !== typeof opts.storage) {
+                output.close()
+              }
             })
           })
         })

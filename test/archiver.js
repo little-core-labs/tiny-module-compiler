@@ -158,3 +158,70 @@ test('archiver.archive(filename, objects, callback) - from custom storage', (t) 
     })
   })
 })
+
+test('archiver.archive(filename, objects, callback) - append assets', (t) => {
+  const filename = path.resolve(__dirname, 'fixtures', 'with-assets.js')
+  const destname = filename.replace(process.cwd() + path.sep, '') + '.out'
+  const assetname = path.resolve(__dirname, 'fixtures', 'file')
+    .replace(process.cwd() + path.sep, '')
+
+  const archiver = new Archiver()
+  const compiler = new Compiler()
+  const box = new TinyBox(filename + '.a')
+
+  archiver.ready(() => {
+    compiler.target(filename)
+    compiler.compile((err, objects, assets) => {
+      archiver.archive(filename + '.a', objects, (err) => {
+        t.error(err)
+        archiver.archive(filename + '.a', assets, { truncate: false }, (err) => {
+
+          box.get('index', (err, result) => {
+            const index = messages.Archive.Index.decode(result.value)
+
+            t.equal(2, index.size, 'index.size')
+            t.ok(Array.isArray(index.entries), 'index.entries')
+            t.equal(2, index.entries.length, 'index.entries.length')
+
+            const asset = assets.get(assetname)
+            const { source, permissions } = asset
+
+            t.equal(1, assets.size, 'assets.size')
+            t.ok(Buffer.isBuffer(source), 'asset.source is buffer')
+            t.equal('number', typeof permissions, 'asset.permissions is number')
+            t.end()
+          })
+        })
+      })
+    })
+  })
+})
+
+test('archiver.archive(filename, objects, callback) - prevent duplicate appends', (t) => {
+  const filename = path.resolve(__dirname, 'fixtures', 'simple.js')
+  const destname = filename.replace(process.cwd() + path.sep, '') + '.out'
+
+  const archiver = new Archiver()
+  const compiler = new Compiler()
+  const box = new TinyBox(filename + '.a')
+
+  archiver.ready(() => {
+    compiler.target(filename)
+    compiler.compile((err, objects) => {
+      archiver.archive(filename + '.a', objects, (err) => {
+        t.error(err)
+        archiver.archive(filename + '.a', objects, { truncate: false }, (err) => {
+          box.get('index', (err, result) => {
+            const index = messages.Archive.Index.decode(result.value)
+
+            t.equal(1, index.size, 'index.size')
+            t.ok(Array.isArray(index.entries), 'index.entries')
+            t.equal(1, index.entries.length, 'index.entries.length')
+
+            t.end()
+          })
+        })
+      })
+    })
+  })
+})

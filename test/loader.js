@@ -1,7 +1,6 @@
 const path = require('path')
 const test = require('tape')
 const ram = require('random-access-memory')
-const fs = require('fs')
 
 const { Archiver } = require('../archiver')
 const { Compiler } = require('../compiler')
@@ -47,7 +46,6 @@ test('loader.load(filename, callback) - compiled module', (t) => {
   const loader = new Loader()
   compiler.target(filename)
   compiler.compile((err, objects) => {
-    fs.writeFileSync(destname, objects.get(destname))
     loader.load(destname, (err, exports) => {
       t.error(err)
       t.equal('object', exports && typeof exports, 'exports')
@@ -65,7 +63,6 @@ test('loader.load(filename, callback) - compiled module (cached)', (t) => {
   const loader = new Loader()
   compiler.target(filename)
   compiler.compile((err, objects) => {
-    fs.writeFileSync(destname, objects.get(destname))
     loader.load(destname, (err, exports) => {
       t.error(err)
       t.equal(true, loader.cache.has(path.resolve(destname)), 'loader.cache.has(destname)')
@@ -152,7 +149,6 @@ test('loader.load(filename, opts, callback) - thrown error (compiled)', (t) => {
   const loader = new Loader()
   compiler.target(filename)
   compiler.compile((err, objects) => {
-    fs.writeFileSync(destname, objects.get(destname))
     loader.load(destname, (err, exports) => {
       t.ok(err && err instanceof Error, 'callback(err)')
       t.end()
