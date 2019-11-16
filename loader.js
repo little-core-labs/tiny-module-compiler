@@ -2,8 +2,11 @@ const { Module } = require('module')
 const { Target } = require('./target')
 const { Pool } = require('nanoresource-pool')
 const messages = require('./messages')
-const varint = require('varint')
+const uint64be = require('uint64be')
 const TinyBox = require('tinybox')
+const isUTF8 = require('isutf8')
+const varint = require('varint')
+const ready = require('nanoresource-ready')
 const Batch = require('batch')
 const magic = require('./magic')
 const path = require('path')
@@ -11,12 +14,21 @@ const raf = require('random-access-file')
 const v8 = require('v8')
 const vm = require('vm')
 
-// @TODO
+// quick util
+const noop = () => void 0
+
+// Turn off lazy compilation in `v8`
+// see: https://stackoverflow.com/questions/21534565/what-does-the-node-js-nolazy-flag-mean
 v8.setFlagsFromString('--no-lazy')
 
 /**
+ * Custom function to construct a `require()` function when
+ * the `Module.createRequireFromPath()` function is not available.
+ * @private
  * @param {Module} mod
+ * @return {Function}
  */
+// istanbul ignore next
 function makeRequireFunction(mod) {
   const extensions = Module._extensions
   const cache = Module._cache
@@ -50,7 +62,9 @@ function makeRequireFunction(mod) {
 }
 
 /**
- * @TODO
+ * The `Loader` class represents an abstraction for loading compiled
+ * module objects and JavaScript sources as node modules.
+ * @public
  * @class
  * @extends Pool
  */
@@ -59,6 +73,7 @@ class Loader extends Pool {
   /**
    * `Loader` class constructor.
    * @param {?(Object)} opts
+   * @param {?(Map)} opts.cache
    */
   constructor(opts) {
     if (!opts || 'object' !== typeof opts) {
@@ -66,6 +81,8 @@ class Loader extends Pool {
     }
 
     super(Target)
+
+    this.cache = opts.cache || new Map()
   }
 
   /**
@@ -78,31 +95,45 @@ class Loader extends Pool {
   }
 
   /**
+   * Loads a compiled module object or JavaScript source module
+   * specified at filename calling `callback(err, exports)` upon success
+   * or error. Success loads will cache resulting module for subsequent
+   * requests to load the module.
    * @param {String} filename
    * @param {?(Object)} opts
-   * @param {?(Object)} opts.global
-   * @param {?(Object)} opts.module
-   * @param {?(Object)} opts.module.parent
+   * @param {?(Object)} opts.storage
    * @param {Function} callback
    * @return {Target}
    */
   load(filename, opts, callback) {
+    const { cache } = this
+
     if ('function' === typeof opts) {
       callback = opts
-      opts = {}
     }
 
     if (!opts || 'object' !== typeof opts) {
       opts = {}
     }
 
+    // istanbul ignore next
+    if ('function' !== typeof callback) {
+      callback = noop
+    }
+
     filename = path.resolve(filename)
+
+    if (cache.has(filename)) {
+      return process.nextTick(callback, null, cache.get(filename).exports, true)
+    }
 
     const dirname = path.dirname(filename)
     const target = this.resource(filename, opts)
     const paths = Module._nodeModulePaths(filename)
 
     const contextModule = new Module(filename)
+
+    // istanbul ignore next
     const contextRequire = 'function' === typeof Module.createRequireFromPath
       ? Module.createRequireFromPath(filename)
       : makeRequireFunction(contextModule)
@@ -112,7 +143,7 @@ class Loader extends Pool {
       paths
     })
 
-    target.ready(onopen)
+    target.open(onopen)
 
     return target
 
@@ -122,75 +153,94 @@ class Loader extends Pool {
     }
 
     function onstat(err, stats) {
+      // istanbul ignore next
       if (err) { return callback(err) }
       target.read(0, stats.size, onread)
     }
 
     function onread(err, buffer) {
+      // istanbul ignore next
       if (err) { return callback(err) }
+
       const head = buffer.slice(0, 4)
+      let error = null
 
       if (0 === Buffer.compare(head, magic.OBJECT_BYTES)) {
         return onbuffer(buffer, callback)
       }
 
-      // try as regular script
-      try {
-        const script = new vm.Script(Module.wrap(buffer), { filename })
-        const init = script.runInThisContext()
-        if ('function' === typeof init) {
-          init(
-            contextModule.exports,
-            contextRequire,
-            contextModule,
-            filename,
-            dirname,
-            process,
-            global,
-            Buffer)
+      do {
+        if (isUTF8(buffer)) {
+          try {
+            new vm.Script(buffer, { filename })
+          } catch (err) {
+            if (!(/invalid/i.test(err.message) && err instanceof SyntaxError)) {
+              error = err
+            }
+            break
+          }
+
+          // try as regular script
+          const wrap = Module.wrap(buffer)
+          const script = new vm.Script(wrap, { filename })
+          const init = script.runInThisContext()
+
+          try {
+            init(
+              contextModule.exports,
+              contextRequire,
+              contextModule,
+              filename,
+              dirname,
+              process,
+              global,
+              Buffer)
+          } catch (err) {
+            return callback(err)
+          }
 
           contextModule.loaded = true
-        }
+          cache.set(filename, contextModule)
 
-        return callback(null, contextModule.exports, contextModule.loaded)
-      } catch (err) {
-        if (false === err instanceof SyntaxError) {
-          return callback(err)
+          return callback(null, contextModule.exports, contextModule.loaded)
         }
-      }
+      } while (0)
 
       // try as archive
-      const archive = new TinyBox(raf(filename))
+      const archive = new TinyBox(opts.storage || raf(filename))
       archive.get('index', (err, result) => {
-        if (err) {
-          return callback(new Error('Unknown file type loaded.'))
+        // istanbul ignore next
+        if (err) { return callback(err) }
+
+        if (!result) {
+          return callback(error || new Error('Invalid or Empty archive.'))
         }
 
-        if (result && result.value) {
-          const { index } = messages.Archive.decode(result.value)
-          if (index && index.entries) {
-            const batch = new Batch()
-            for (const entry of index.entries) {
-              batch.push((next) => {
-                archive.get(entry.filename, (err, result) => {
-                  if (err) { return next(err) }
-                  onbuffer(result.value, (err, result) => {
-                    if (err) { return next(err) }
-                    next(null, { [entry.filename]: result })
-                  })
-                })
-              })
-            }
+        const index = messages.Archive.Index.decode(result.value)
+        const batch = new Batch()
 
-            batch.end((err, results) => {
-              if (err) { return callback(err) }
-              if (Array.isArray(results)) {
-                callback(null, Object.assign({}, ...results))
-              } else {
-                callback(null, null)
-              }
+        for (const entry of index.entries) {
+          batch.push((next) => {
+            archive.get(entry.filename, (err, result) => {
+              // istanbul ignore next
+              if (err) { return next(err) }
+              onbuffer(result.value, (err, result) => {
+                // istanbul ignore next
+                if (err) { return next(err) }
+                next(null, { [entry.filename]: result })
+              })
             })
-          }
+          })
+
+          // istanbul ignore next
+          batch.end((err, results) => {
+            if (err) { return callback(err) }
+            if (Array.isArray(results)) {
+              callback(null, Object.assign({}, ...results))
+            } else {
+              callback(null, null)
+            }
+          })
         }
       })
     }
@@ -198,13 +248,36 @@ class Loader extends Pool {
     function onbuffer(buffer, done) {
       buffer = buffer.slice(4)
 
+      const versionsLength = varint.decode(buffer)
+      buffer = buffer.slice(varint.decode.bytes)
+
+      const versions = messages.Versions.decode(buffer.slice(0, versionsLength))
+      buffer = buffer.slice(messages.Versions.decode.bytes)
+
+      // ensure versions in header match running process
+      for (const name in versions) {
+        // istanbul ignore next
+        if (versions[name] !== process.versions[name]) {
+          return done(new Error(
+            `${name} version mismatch. ` +
+            `Expecting: "${versions[name]}". ` +
+            `Got: "${process.versions[name]}".`
+          ))
+        }
+      }
+
       const size = varint.decode(buffer)
+      buffer = buffer.slice(varint.decode.bytes)
+
+      // "\u200b" means zero width space as used in `bytenode`
       const stub = '"' + "\u200b".repeat(size - 2) + '"'
-      const cachedData = buffer.slice(varint.decode.bytes)
+      const cachedData = buffer.slice()
 
       try {
         const script = new vm.Script(stub, { filename, cachedData })
         const init = script.runInThisContext()
+
+        // istanbul ignore next
         if ('function' === typeof init) {
           init(
             contextModule.exports,
@@ -217,6 +290,7 @@ class Loader extends Pool {
             Buffer)
 
           contextModule.loaded = true
+          cache.set(filename, contextModule)
         }
 
         done(null, contextModule.exports, contextModule.loaded)

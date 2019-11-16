@@ -5,13 +5,7 @@ const path = require('path')
 const glob = require('glob')
 
 /**
- * Compile a target or targets into a self contained compiled
- * module object. Input can be an array or a string. String inputs be use
- * `glob` syntax to target several files based on a pattern. Code is compiled
- * with `ncc` and stored on disk in v8 cache binary format with header
- * metadata. This function will call `callback(err, objects)` upon success
- * or error. Compiled module objects are made aware to the caller by a
- * `Map` instance given in the `callback` * function.
+ * Compiles the glob result of `target`
  * @param {String|Array} target
  * @param {?(Object)} opts
  * @param {Function} callback
@@ -63,6 +57,7 @@ function compile(target, opts, callback) {
         }
         batch.push((next) => compiler.target(pathspec, copts).open(next))
       } catch (err) {
+        // istanbul ignore next
         return callback(err)
       }
     }

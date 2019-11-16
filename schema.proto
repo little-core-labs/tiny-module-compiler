@@ -1,5 +1,11 @@
 syntax = "proto3";
 
+message Versions {
+  string v8 = 1;
+  string uv = 2;
+  string node = 3;
+}
+
 message Archive {
   Index index = 1;
 

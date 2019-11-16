@@ -1,7 +1,9 @@
 const { Archiver } = require('./archiver')
 
 /**
- * @TODO
+ * Archives `objects` into `target` where `opts` is passed directly
+ * to the `Archiver` constructor and `callback(err)` is called upon success
+ * or error.
  * @param {String} target
  * @param {Array|Map} objects
  * @param {?(Object)} opts
@@ -18,7 +20,10 @@ function archive(target, objects, opts, callback) {
   }
 
   const archiver = new Archiver(opts)
-  archiver.archive(target, objects, callback)
+
+  archiver.ready(() => {
+    archiver.archive(target, objects, callback)
+  })
 }
 
 /**

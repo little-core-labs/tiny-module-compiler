@@ -5,7 +5,7 @@ const raf = require('random-access-file')
 
 /**
  * The `Target` class represents a `nanoresource` to a target file
- * backed by `random-access-storage`.
+ * backed by `random-access-storage` instance.
  * @class
  * @extends Resource
  */
@@ -53,7 +53,11 @@ class Target extends Resource {
    * @param {Function} callback
    */
   _open(callback) {
-    this.storage = raf(this.filename)
+    // istanbul ignore next
+    if (this.storage.opened) {
+      return process.nextTick(callback, null)
+    }
+
     this.storage.open(callback)
   }
 
@@ -63,10 +67,16 @@ class Target extends Resource {
    * @param {Function} callback
    */
   _close(callback) {
-    this.storage.close(calback)
+    // istanbul ignore next
+    if (this.storage.closed) {
+      return process.nextTick(callback, null)
+    }
+
+    this.storage.close(callback)
   }
 
   /**
+   * Queries for stats from the underlying target storage.
    * @param {Function} callback
    */
   stat(callback) {
@@ -74,7 +84,12 @@ class Target extends Resource {
   }
 
   /**
-  */
+   * Reads data from the underlying target storage at a specified
+   * offset and size.
+   * @param {Number} offset
+   * @param {Number} size
+   * @param {Function} callback
+   */
   read(offset, size, callback) {
     this.storage.read(offset, size, callback)
   }

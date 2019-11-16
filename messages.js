@@ -10,6 +10,13 @@ var encodings = require('protocol-buffers-encodings')
 var varint = encodings.varint
 var skip = encodings.skip
 
+var Versions = exports.Versions = {
+  buffer: true,
+  encodingLength: null,
+  encode: null,
+  decode: null
+}
+
 var Archive = exports.Archive = {
   buffer: true,
   encodingLength: null,
@@ -17,7 +24,95 @@ var Archive = exports.Archive = {
   decode: null
 }
 
+defineVersions()
 defineArchive()
+
+function defineVersions () {
+  var enc = [
+    encodings.string
+  ]
+
+  Versions.encodingLength = encodingLength
+  Versions.encode = encode
+  Versions.decode = decode
+
+  function encodingLength (obj) {
+    var length = 0
+    if (defined(obj.v8)) {
+      var len = enc[0].encodingLength(obj.v8)
+      length += 1 + len
+    }
+    if (defined(obj.uv)) {
+      var len = enc[0].encodingLength(obj.uv)
+      length += 1 + len
+    }
+    if (defined(obj.node)) {
+      var len = enc[0].encodingLength(obj.node)
+      length += 1 + len
+    }
+    return length
+  }
+
+  function encode (obj, buf, offset) {
+    if (!offset) offset = 0
+    if (!buf) buf = Buffer.allocUnsafe(encodingLength(obj))
+    var oldOffset = offset
+    if (defined(obj.v8)) {
+      buf[offset++] = 10
+      enc[0].encode(obj.v8, buf, offset)
+      offset += enc[0].encode.bytes
+    }
+    if (defined(obj.uv)) {
+      buf[offset++] = 18
+      enc[0].encode(obj.uv, buf, offset)
+      offset += enc[0].encode.bytes
+    }
+    if (defined(obj.node)) {
+      buf[offset++] = 26
+      enc[0].encode(obj.node, buf, offset)
+      offset += enc[0].encode.bytes
+    }
+    encode.bytes = offset - oldOffset
+    return buf
+  }
+
+  function decode (buf, offset, end) {
+    if (!offset) offset = 0
+    if (!end) end = buf.length
+    if (!(end <= buf.length && offset <= buf.length)) throw new Error("Decoded message is not valid")
+    var oldOffset = offset
+    var obj = {
+      v8: "",
+      uv: "",
+      node: ""
+    }
+    while (true) {
+      if (end <= offset) {
+        decode.bytes = offset - oldOffset
+        return obj
+      }
+      var prefix = varint.decode(buf, offset)
+      offset += varint.decode.bytes
+      var tag = prefix >> 3
+      switch (tag) {
+        case 1:
+        obj.v8 = enc[0].decode(buf, offset)
+        offset += enc[0].decode.bytes
+        break
+        case 2:
+        obj.uv = enc[0].decode(buf, offset)
+        offset += enc[0].decode.bytes
+        break
+        case 3:
+        obj.node = enc[0].decode(buf, offset)
+        offset += enc[0].decode.bytes
+        break
+        default:
+        offset = skip(prefix & 7, buf, offset)
+      }
+    }
+  }
+}
 
 function defineArchive () {
   var Index = Archive.Index = {

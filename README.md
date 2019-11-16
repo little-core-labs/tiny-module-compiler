@@ -17,11 +17,6 @@ $ npm install tiny-module-compiler
 
 > [![Actions Status](https://github.com/little-core-labs/tiny-module-compiler/workflows/Node%20CI/badge.svg)](https://github.com/little-core-labs/tiny-module-compiler/actions)
 
-## Supported Node Version
-
-Currently `node10` has full support from this module. `node12` is known
-to have some issues when loading compiled modules.
-
 <a name="usage"></a>
 ## Usage
 
@@ -65,14 +60,7 @@ tmc.load('build/module.a', (err, archive) => {
 
 ### `compile(target[, opts], callback)`
 
-Compile a target or targets into a self contained compiled
-module object. Input can be an array or a string. String inputs be use
-[`glob`][glob] syntax to target several files based on a pattern. Code
-is compiled with [`ncc`][ncc] and stored on disk in
-[v8 cache binary](https://nodejs.org/api/vm.html#vm_script_createcacheddata)
-format with header metadata. This function will call `callback(err, objects)`
-upon success or error. Compiled module objects are made aware to the caller
-by a `Map` instance given in the `callback` * function.
+> TODO
 
 ```js
 compile('{left,right}.js', (err, objects) => {

@@ -1,33 +1,42 @@
-const { Target } = require('./target')
-const { Pool } = require('nanoresource-pool')
+const Resource = require('nanoresource')
 const messages = require('./messages')
 const TinyBox = require('tinybox')
 const rimraf = require('rimraf')
+const ready = require('nanoresource-ready')
 const Batch = require('batch')
 const raf = require('random-access-file')
+const fs = require('fs')
 
 /**
- * The `Archiver` represents
+ * The `Archiver` class represents an abstraction for storing
+ * compiled objects into a `TinyBox`
  * @class
- * @extends Pool
+ * @extends Resource
  */
-class Archiver extends Pool {
+class Archiver extends Resource {
 
   /**
    * `Archiver` class constructor.
    * @param {?(Object)} opts
+   * @param {?(Function)} opts.storage
    */
   constructor(opts) {
     if (!opts || 'object' !== typeof opts) {
       opts = {}
     }
 
-    super(Target)
+    super()
+
+    if ('function' === typeof opts.storage) {
+      this.storage = opts.storage
+    } else {
+      this.storage = raf
+    }
   }
 
   /**
-   * Waits for compiler to be ready and calls `callback(err)` upon
-   * success or error
+   * Waits for compiler to be ready and calling `callback()`
+   * when it is.
    * @param {Function} ready
    */
   ready(callback) {
@@ -35,10 +44,13 @@ class Archiver extends Pool {
   }
 
   /**
-   * @TODO
-   * @param {String} target
+   * Creates a named archive specified at `filename`
+   * with given objects calling `callback(err)` upon success
+   * or error.
+   * @param {String} filename
    * @param {Array|Map} objects
    * @param {?(Object)} opts
+   * @param {?(Object)} opts.storage
    * @param {Function} callback
    */
   archive(filename, objects, opts, callback) {
@@ -47,39 +59,63 @@ class Archiver extends Pool {
       opts = {}
     }
 
+    // istanbul ignore next
     if (!opts || 'object' !== typeof opts) {
       opts = {}
     }
 
-    rimraf(filename, (err) => {
-      if (err) { return callback(err) }
+    const steps = new Batch().concurrency(1)
 
+    if (!opts.storage) {
+      steps.push((done) => {
+        fs.access(filename, (err) => {
+          // istanbul ignore next
+          if (err) { return done(null) }
+          rimraf(filename, done)
+        })
+      })
+    }
+
+    steps.push((done) => {
       if (Array.isArray(objects)) {
-        objects = new Map(objects.map((object) => [object, null]))
+        if (Array.isArray(objects[0])) {
+          objects = new Map(objects)
+        } else {
+          objects = new Map(objects.map((object) => [object, null]))
+        }
       }
 
       const filenames = [ ...objects.keys() ]
-      const entries = filenames.map((filename, id) => ({ id, filename }))
-      const target = this.resource(filename, opts)
+      const entries = filenames.sort().map((filename, id) => ({ id, filename }))
+      const storage = opts.storage || this.storage(filename)
       const batch = new Batch()
-      const index = messages.Archive.encode({
-        index: { size: entries.length, entries }
-      })
+      const size = entries.length
+      const box = new TinyBox(storage)
 
-      target.box = new TinyBox(filename)
-      batch.push((next) => target.box.put('index', index, next))
+      const versions = messages.Versions.encode(process.versions)
+      const index = messages.Archive.Index.encode({ size, entries })
+
+      batch.push((next) => box.put('versions', versions, next))
+      batch.push((next) => box.put('index', index, next))
 
       for (const [ objectPath, objectBuffer ] of objects) {
         batch.push((next) => {
-          if (objectBuffer) {
-            target.box.put(objectPath, objectBuffer, next)
+          if (Buffer.isBuffer(objectBuffer)) {
+            box.put(objectPath, objectBuffer, next)
           } else {
-            const file = raf(objectPath)
+            // `objectBuffer` could be a `random-access-storage` instance
+            const file = objectBuffer && objectBuffer.stat && objectBuffer.read
+              ? objectBuffer
+              : raf(objectPath)
+
             file.stat((err, stats) => {
+              // istanbul ignore next
               if (err) { return next(err) }
               file.read(0, stats.size, (err, buffer) => {
+                // istanbul ignore next
                 if (err) { return next(err) }
-                target.box.put(objectPath, buffer, (err) => {
+                box.put(objectPath, buffer, (err) => {
+                  // istanbul ignore next
                   if (err) { return next(err) }
                   file.close(next)
                 })
@@ -90,10 +126,17 @@ class Archiver extends Pool {
       }
 
       batch.end((err) => {
-        if (err) { return callback(err) }
-        target.close(callback)
+        // istanbul ignore next
+        if (err) { return done(err) }
+        if (!opts.storage) {
+          storage.close(done)
+        } else {
+          process.nextTick(done, null)
+        }
       })
     })
+
+    steps.end(callback)
   }
 }
 

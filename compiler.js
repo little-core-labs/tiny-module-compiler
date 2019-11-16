@@ -1,6 +1,7 @@
 const { Target } = require('./target')
 const { Module } = require('module')
 const { Pool } = require('nanoresource-pool')
+const messages = require('./messages')
 const varint = require('varint')
 const rimraf = require('rimraf')
 const Batch = require('batch')
@@ -13,9 +14,13 @@ const vm = require('vm')
 
 // quick util
 const errback = (p, cb) => void p.then((r) => cb(null, r), cb).catch(cb)
+const noop = () => void 0
 
 /**
- * @TODO
+ * The `Compiler` class represents a container of compile targets
+ * that can be compiled into a single binary file containing
+ * v8 cache data and header information about the compiled output.
+ * @public
  * @class
  * @extends Pool
  */
@@ -24,6 +29,7 @@ class Compiler extends Pool {
   /**
    * `Compiler` class constructor.
    * @param {?(Object)} opts
+   * @param {?(String)} opts.cwd
    */
   constructor(opts) {
     if (!opts || 'object' !== typeof opts) {
@@ -52,24 +58,54 @@ class Compiler extends Pool {
   }
 
   /**
-   * @TODO
+   * Creates and returns a new compile target that is added to
+   * compiler pool. The target will be compiled when `
    * @param {String} filename
    * @param {?(Object)} opts
+   * @param {?(String)} opts.output
+   * @param {?(Object)} opts.storage
+   * @param {?(Boolean)} [opts.autoOpen = true]
+   * @param {?(Function)} callback
    * @return {Target}
    */
-  target(filename, opts) {
+  target(filename, opts, callback) {
+    if ('function' === typeof opts) {
+      callback = opts
+      opts = {}
+    }
+
     if (!opts || 'object' !== typeof opts) {
       opts = {}
     }
 
-    return Object.assign(this.resource(filename, opts), {
+    if ('function' !== typeof callback) {
+      callback = noop
+    }
+
+    const target = Object.assign(this.resource(filename, opts), {
       output: opts.output || filename + '.out'
     })
+
+    if (false !== opts.autoOpen) {
+      target.open((err) => {
+        callback(err, target)
+      })
+    }
+
+    return target
   }
 
   /**
-   * @TODO
+   * Compiles all pending compile targets calling
+   * `callback(err, objects, assets)` upon success or error. Callback
+   * will be given a `Map` of compiled objects and a `Map` of extracted
+   * assets that should live with the compiled objects on disk.
    * @param {?(Object)} opts
+   * @param {?(Boolean)} opts.map
+   * @param {?(Boolean)} opts.cache
+   * @param {?(Boolean)} opts.debug
+   * @param {?(Boolean)} opts.quiet
+   * @param {?(Array<String>)} opts.externals
    * @param {Function} callback
    */
   compile(opts, callback) {
@@ -78,6 +114,7 @@ class Compiler extends Pool {
       opts = {}
     }
 
+    // istanbul ignore next
     if (!opts || 'object' !== typeof opts) {
       opts = {}
     }
@@ -105,20 +142,23 @@ class Compiler extends Pool {
           minify: false, // if `true` this can break cached builds
           quiet: false !== opts.quiet, // @TODO: `false` in "debug"
         }), (err, result) => {
+          // istanbul ignore next
           if (err) { return next(err) }
           for (const name in result.assets) {
-            assets.set(name, result.assets[name])
+            assets.set(
+              path.dirname(targetName) + path.sep + name,
+              result.assets[name])
           }
 
           if (opts.debug) {
-            assets.set(path.basename(targetName) + '.debug.compiled.js', {
+            assets.set(targetName + '.debug.compiled.js', {
               source: Buffer.from(result.code),
               permissions: 438 // 0666
             })
           }
 
           if (result.map) {
-            assets.set(path.basename(targetName) + '.map', {
+            assets.set(targetName + '.map', {
               source: Buffer.from(result.map),
               permissions: 438 // 0666
             })
@@ -130,49 +170,55 @@ class Compiler extends Pool {
             filename: basename
           })
 
+          // istanbul ignore next
           const cache = 'function' === typeof script.createCachedData
             ? script.createCachedData()
             : script.cachedData
 
+          // istanbul ignore next
           if (!cache) {
             return next(new Error('Unable to capture compiled cached data.'))
           }
 
           // borrowed from: https://github.com/OsamaAbbas/bytenode/blob/master/index.js#L56
-          const len = cache.slice(8, 12).reduce((y, x, i) => y += x * Math.pow(256, i), 0)
-          const size = Buffer.from(varint.encode(len))
+          const length = cache.slice(8, 12).reduce((y, x, i) => y += x * Math.pow(256, i), 0)
+          const versions = messages.Versions.encode(process.versions)
 
           objects.set(targetName, Buffer.concat([
-            magic.OBJECT_BYTES, size, cache
+            // header
+            magic.OBJECT_BYTES,
+            Buffer.from(varint.encode(versions.length)),
+            versions,
+            // body
+            Buffer.from(varint.encode(length)),
+            cache
           ]))
 
-          next(null)
+          target.close(next)
         })
       })
     }
 
     batch.end((err) => {
+      // istanbul ignore next
       if (err) { return callback(err) }
 
       for (const [ filename, object ] of objects) {
         writes.push((next) => {
           rimraf(filename, (err) => {
+            // istanbul ignore next
             if (err) { return callback(err) }
             const output = raf(filename)
             output.write(0, object, (err) => {
-              if (err) {
-                output.close(() => next(err))
-              } else {
-                output.close(next)
-              }
+              next(err)
+              output.close()
             })
           })
         })
       }
 
       writes.end((err) => {
-        if (err) { return callback(err) }
-        callback(null, objects, assets)
+        callback(err, objects, assets)
       })
     })
   }
@@ -182,5 +228,5 @@ class Compiler extends Pool {
  * Module exports.
  */
 module.exports = {
-  Compiler,
+  Compiler
 }
