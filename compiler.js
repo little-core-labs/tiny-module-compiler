@@ -13,6 +13,7 @@ const ncc = require('@zeit/ncc')
 const vm = require('vm')
 
 // quick util
+const noopback = (...args) => void args.pop()(null)
 const errback = (p, cb) => void p.then((r) => cb(null, r), cb).catch(cb)
 const noop = () => void 0
 
@@ -213,9 +214,11 @@ class Compiler extends Pool {
       // istanbul ignore next
       if (err) { return callback(err) }
 
-      for (const [ filename, object ] of objects) {
+      for (let [ filename, object ] of objects) {
+        filename = path.resolve(this.cwd, filename)
         writes.push((next) => {
-          rimraf(filename, (err) => {
+          const rm = opts.storage ? noopback : rimraf
+          rm(filename, (err) => {
             // istanbul ignore next
             if (err) { return callback(err) }
 
