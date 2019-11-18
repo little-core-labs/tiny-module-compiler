@@ -3,7 +3,7 @@ const path = require('path')
 const ram = require('random-access-memory')
 
 const storage = ram()
-const target = path.resolve(__dirname, 'fixtures', 'module', 'hello.js')
+const target = path.resolve(__dirname, 'fixtures', 'hello.js')
 compile(target, { storage: () => storage }, (err, objects) => {
   const filename = objects.keys().next().value
   load(filename, { storage }, (err, exports) => {

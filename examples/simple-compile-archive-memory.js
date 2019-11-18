@@ -4,7 +4,7 @@ const TinyBox = require('tinybox')
 const path = require('path')
 const ram = require('random-access-memory')
 
-const filename = path.resolve(__dirname, 'fixtures', 'module', 'hello.js')
+const filename = path.resolve(__dirname, 'fixtures', 'hello.js')
 const target = filename + '.a'
 const storages = {
   object: ram(),

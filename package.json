@@ -33,6 +33,7 @@
     "glob": "^7.1.5",
     "isutf8": "^2.1.0",
     "minimist": "^1.2.0",
+    "mkdirp": "^0.5.1",
     "nanoassert": "^2.0.0",
     "nanoresource": "^1.2.0",
     "nanoresource-pool": "^0.3.1",
