@@ -4,11 +4,16 @@
   "description": "Compile, archive, and load compiled modules leveraging v8 cached data.",
   "main": "index.js",
   "scripts": {
-    "test": "nyc -x fixtures -x example.js -x bin -x tmp -x messages.js -x test tape test/*.js"
+    "test": "nyc -x fixtures -x example.js -x bin -x tmp -x messages.js -x test tape test/*.js",
+    "clean": "scripts/clean"
   },
   "bin": {
     "tmc": "bin/tmc"
   },
+  "files": [
+    "*.js",
+    "bin/tmc"
+  ],
   "keywords": [
     "compile",
     "v8",
