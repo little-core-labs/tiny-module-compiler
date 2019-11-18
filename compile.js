@@ -59,6 +59,8 @@ function compile(target, opts, callback) {
         const copts = Object.assign({}, opts)
         if (copts.output && files.length > 1) {
           copts.output = path.join(copts.output, path.basename(pathspec))
+        } else if (opts.storage && !copts.output) {
+          copts.output = pathspec
         }
         batch.push((next) => compiler.target(pathspec, copts).open(next))
       } catch (err) {
