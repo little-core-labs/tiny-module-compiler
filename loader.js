@@ -231,17 +231,17 @@ class Loader extends Pool {
               })
             })
           })
-
-          // istanbul ignore next
-          batch.end((err, results) => {
-            if (err) { return callback(err) }
-            if (Array.isArray(results)) {
-              callback(null, Object.assign({}, ...results))
-            } else {
-              callback(null, null)
-            }
-          })
         }
+
+        // istanbul ignore next
+        batch.end((err, results) => {
+          if (err) { return callback(err) }
+          if (Array.isArray(results)) {
+            callback(null, Object.assign({}, ...results))
+          } else {
+            callback(null, null)
+          }
+        })
       })
     }
 
