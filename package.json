@@ -1,7 +1,7 @@
 {
   "name": "tiny-module-compiler",
   "version": "0.1.0",
-  "description": "Compile, archive, and load compiled modules leveraging v8 cached data.",
+  "description": "Compile, archive, unpack, and load compiled modules leveraging v8 cached data.",
   "main": "index.js",
   "scripts": {
     "test": "nyc -x fixtures -x example.js -x bin -x tmp -x messages.js -x test tape test/*.js",

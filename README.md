@@ -1,6 +1,6 @@
 <img src="https://github.com/little-core-labs/tiny-module-compiler/blob/master/assets/cover.png" alt="tiny module compiler" />
 
-**_Compile, archive, and load compiled modules leveraging v8 cached data._**
+**_Compile, archive, unpack, and load compiled modules leveraging v8 cached data._**
 
 <a name="toc"></a>
 ## Table of Contents
