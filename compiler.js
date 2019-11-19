@@ -24,6 +24,12 @@ const noop = () => void 0
 const DEFAULT_OUTPUT_EXTNAME = '.out'
 
 /**
+ * Default file permissions for assets.
+ * @private
+ */
+const DEFAULT_ASSET_PERMISSIONS = 438 // 0666
+
+/**
  * The `Compiler` class represents a container of compile targets
  * that can be compiled into a single binary file containing
  * v8 cache data and header information about the compiled output.
@@ -140,6 +146,8 @@ class Compiler extends Pool {
         const targetName = path.resolve(target.output)
           .replace(path.join(path.resolve(this.cwd), path.sep), '')
 
+        const shouldOptimize = (opts.minify || opts.optimize)
+
         batch.push((next) => {
           // assume target is on disk for now
           errback(ncc(filename, {
@@ -147,7 +155,7 @@ class Compiler extends Pool {
             externals: opts.externals || [],
             cache: opts.cache || false,
             v8cache: false, // we'll do this manually
-            minify: opts.minify && !opts.debug && !opts.map,
+            minify: shouldOptimize,
             quiet: false !== opts.quiet
           }), (err, result) => {
             // istanbul ignore next
@@ -161,14 +169,14 @@ class Compiler extends Pool {
             if (opts.debug) {
               assets.set(targetName + '.debug.compiled.js', {
                 source: Buffer.from(result.code),
-                permissions: 438 // 0666
+                permissions: DEFAULT_ASSET_PERMISSIONS
               })
             }
 
             if (result.map) {
               assets.set(targetName + '.map', {
                 source: Buffer.from(result.map),
-                permissions: 438 // 0666
+                permissions: DEFAULT_ASSET_PERMISSIONS
               })
             }
 
@@ -188,17 +196,36 @@ class Compiler extends Pool {
               return next(new Error('Unable to capture compiled cached data.'))
             }
 
+            // read `uint32_t` from the "source hash" part of the serialized cache data:
             // borrowed from: https://github.com/OsamaAbbas/bytenode/blob/master/index.js#L56
-            const length = cache.slice(8, 12).reduce((y, x, i) => y += x * Math.pow(256, i), 0)
+            // read from: https://github.com/v8/v8/blob/master/src/snapshot/code-serializer.h#L93
+            const sourceHash = cache.slice(8, 12).reduce((y, x, i) => y += x * Math.pow(256, i), 0)
             const versions = messages.Versions.encode(process.versions)
 
+            const options = messages.Options.encode({
+              filename: path.basename(filename),
+              optimized: shouldOptimize,
+              externals: opts.externals,
+              assets: Array.from(assets.keys()),
+            })
+
             objects.set(targetName, Buffer.concat([
-              // header
-              magic.OBJECT_BYTES,
+              // header (4 bytes)
+              magic.TMCO,
+
+              // versions
               Buffer.from(varint.encode(versions.length)),
               versions,
-              // body
-              Buffer.from(varint.encode(length)),
+
+              // options
+              Buffer.from(varint.encode(options.length)),
+              options,
+
+              // source hash
+              Buffer.from(varint.encode(sourceHash)),
+
+              // cache
+              Buffer.from(varint.encode(cache.length)),
               cache
             ]))
 

@@ -6,6 +6,13 @@ message Versions {
   string node = 3;
 }
 
+message Options {
+  string filename = 1;
+  bool optimized = 2;
+  repeated string externals = 3;
+  repeated string assets = 4;
+}
+
 message Archive {
   Index index = 1;
 

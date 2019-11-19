@@ -166,7 +166,7 @@ class Loader extends Pool {
       const head = buffer.slice(0, 4)
       let error = null
 
-      if (0 === Buffer.compare(head, magic.OBJECT_BYTES)) {
+      if (0 === Buffer.compare(head, magic.TMCO)) {
         return onbuffer(buffer, callback)
       }
 
@@ -247,13 +247,25 @@ class Loader extends Pool {
     }
 
     function onbuffer(buffer, done) {
-      buffer = buffer.slice(4)
+      buffer = buffer.slice(4) // TMCO magic bytes
 
       const versionsLength = varint.decode(buffer)
       buffer = buffer.slice(varint.decode.bytes)
 
       const versions = messages.Versions.decode(buffer.slice(0, versionsLength))
       buffer = buffer.slice(messages.Versions.decode.bytes)
+
+      const optionsLength = varint.decode(buffer)
+      buffer = buffer.slice(varint.decode.bytes)
+
+      const options = messages.Options.decode(buffer.slice(0, optionsLength))
+      buffer = buffer.slice(messages.Options.decode.bytes)
+
+      const sourceHash = varint.decode(buffer)
+      buffer = buffer.slice(varint.decode.bytes)
+
+      const cacheLength = varint.decode(buffer)
+      buffer = buffer.slice(varint.decode.bytes)
 
       const ourV8Version = semver.parse(process.versions.v8, { loose: true })
       const theirV8Version = semver.parse(versions.v8, { loose: true })
@@ -285,8 +297,7 @@ class Loader extends Pool {
         }
       }
 
-      const size = varint.decode(buffer)
-      buffer = buffer.slice(varint.decode.bytes)
+      const size = sourceHash
 
       // "\u200b" means zero width space as used in `bytenode`
       const stub = '"' + "\u200b".repeat(size - 2) + '"'

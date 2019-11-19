@@ -17,6 +17,13 @@ var Versions = exports.Versions = {
   decode: null
 }
 
+var Options = exports.Options = {
+  buffer: true,
+  encodingLength: null,
+  encode: null,
+  decode: null
+}
+
 var Archive = exports.Archive = {
   buffer: true,
   encodingLength: null,
@@ -25,6 +32,7 @@ var Archive = exports.Archive = {
 }
 
 defineVersions()
+defineOptions()
 defineArchive()
 
 function defineVersions () {
@@ -105,6 +113,120 @@ function defineVersions () {
         break
         case 3:
         obj.node = enc[0].decode(buf, offset)
+        offset += enc[0].decode.bytes
+        break
+        default:
+        offset = skip(prefix & 7, buf, offset)
+      }
+    }
+  }
+}
+
+function defineOptions () {
+  var enc = [
+    encodings.string,
+    encodings.bool
+  ]
+
+  Options.encodingLength = encodingLength
+  Options.encode = encode
+  Options.decode = decode
+
+  function encodingLength (obj) {
+    var length = 0
+    if (defined(obj.filename)) {
+      var len = enc[0].encodingLength(obj.filename)
+      length += 1 + len
+    }
+    if (defined(obj.optimized)) {
+      var len = enc[1].encodingLength(obj.optimized)
+      length += 1 + len
+    }
+    if (defined(obj.externals)) {
+      for (var i = 0; i < obj.externals.length; i++) {
+        if (!defined(obj.externals[i])) continue
+        var len = enc[0].encodingLength(obj.externals[i])
+        length += 1 + len
+      }
+    }
+    if (defined(obj.assets)) {
+      for (var i = 0; i < obj.assets.length; i++) {
+        if (!defined(obj.assets[i])) continue
+        var len = enc[0].encodingLength(obj.assets[i])
+        length += 1 + len
+      }
+    }
+    return length
+  }
+
+  function encode (obj, buf, offset) {
+    if (!offset) offset = 0
+    if (!buf) buf = Buffer.allocUnsafe(encodingLength(obj))
+    var oldOffset = offset
+    if (defined(obj.filename)) {
+      buf[offset++] = 10
+      enc[0].encode(obj.filename, buf, offset)
+      offset += enc[0].encode.bytes
+    }
+    if (defined(obj.optimized)) {
+      buf[offset++] = 16
+      enc[1].encode(obj.optimized, buf, offset)
+      offset += enc[1].encode.bytes
+    }
+    if (defined(obj.externals)) {
+      for (var i = 0; i < obj.externals.length; i++) {
+        if (!defined(obj.externals[i])) continue
+        buf[offset++] = 26
+        enc[0].encode(obj.externals[i], buf, offset)
+        offset += enc[0].encode.bytes
+      }
+    }
+    if (defined(obj.assets)) {
+      for (var i = 0; i < obj.assets.length; i++) {
+        if (!defined(obj.assets[i])) continue
+        buf[offset++] = 34
+        enc[0].encode(obj.assets[i], buf, offset)
+        offset += enc[0].encode.bytes
+      }
+    }
+    encode.bytes = offset - oldOffset
+    return buf
+  }
+
+  function decode (buf, offset, end) {
+    if (!offset) offset = 0
+    if (!end) end = buf.length
+    if (!(end <= buf.length && offset <= buf.length)) throw new Error("Decoded message is not valid")
+    var oldOffset = offset
+    var obj = {
+      filename: "",
+      optimized: false,
+      externals: [],
+      assets: []
+    }
+    while (true) {
+      if (end <= offset) {
+        decode.bytes = offset - oldOffset
+        return obj
+      }
+      var prefix = varint.decode(buf, offset)
+      offset += varint.decode.bytes
+      var tag = prefix >> 3
+      switch (tag) {
+        case 1:
+        obj.filename = enc[0].decode(buf, offset)
+        offset += enc[0].decode.bytes
+        break
+        case 2:
+        obj.optimized = enc[1].decode(buf, offset)
+        offset += enc[1].decode.bytes
+        break
+        case 3:
+        obj.externals.push(enc[0].decode(buf, offset))
+        offset += enc[0].decode.bytes
+        break
+        case 4:
+        obj.assets.push(enc[0].decode(buf, offset))
         offset += enc[0].decode.bytes
         break
         default:

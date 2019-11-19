@@ -1,12 +1,13 @@
 /**
  * The 4 bytes written to the beginning of a compiled
  * module object file.
+ * @public
  */
-const OBJECT_BYTES = Buffer.from('TMOX')
+const TMCO = Buffer.from('TMCO')
 
 /**
  * Module exports.
-*/
+ */
 module.exports = {
-  OBJECT_BYTES,
+  TMCO
 }
