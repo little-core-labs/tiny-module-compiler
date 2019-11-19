@@ -12,13 +12,15 @@ const fs = require('fs')
 
 const argv = minimist(process.argv.slice(2), {
   boolean: [
-    'help',
-    'debug',
-    'version',
-
     'archive',
     'compile',
+    'copy-assets',
+    'debug',
+    'help',
+    'optimize',
     'source-map',
+    'verbose',
+    'version',
   ],
 
   string: [
@@ -31,14 +33,15 @@ const argv = minimist(process.argv.slice(2), {
 
   alias: {
     a: 'archive',
-    A: 'assets',
     c: 'compile',
     C: 'copy-assets',
     D: 'debug',
     e: 'external',
     h: 'help',
     M: 'source-map',
+    O: 'optimize',
     o: 'output',
+    v: 'verbose',
     V: 'version',
     x: 'external',
   }
@@ -48,14 +51,15 @@ const usage = `usage: tmc [-hDV] [options] ...input
 where options can be:
 
   -a, --archive             If present, will archive input into "tinybox" format
-  -A, --copy-assets         If present, will copy assets to directory of output (default: true)
   -c, --compile             If present, will compile input into header prefixed v8 cached data
-  -C,                       An alias for '--copy-assets'
+  -C, --copy-assets         If present, will copy assets to directory of output (default: true)
   -D, --debug               If present, will enable debug output (DEBUG=tiny-module-compiler)
   -e, --external <module>   Specifies an external dependency that will be linked at runtime
   -h, --help                If present, will print this message
   -M, --source-map          If present, a source map will be generated
   -o, --output <path>       If present, will change the output path. Assumes directory if multiple inputs given
+  -O, --optimize            If present, will optimize output by minifying JavaScript source prior to compilation
+  -v, --verbose             If present, will emit verbose output to stdout/stderr
   -V, --version             If present, will print the version number
   -x                        An alias for '--external'
 `
@@ -82,6 +86,8 @@ if (argv.help || 0 === argv._.length) {
 const opts = {
   map: argv['source-map'],
   debug: argv.debug,
+  quiet: argv.verbose ? false : true,
+  minify: argv.optimize || argv.minify,
   output: argv.output,
   externals: [ ].concat(argv.external).filter(Boolean)
 }
