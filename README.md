@@ -1,15 +1,15 @@
 <img src="https://github.com/little-core-labs/tiny-module-compiler/blob/master/assets/cover.png" alt="tiny module compiler" />
 
-> Compile, archive, and load compiled modules leveraging v8 cached data.
+**_Compile, archive, and load compiled modules leveraging v8 cached data._**
 
 <a name="toc"></a>
 ## Table of Contents
 
-* [Status](#status)
-* [Installation](#installation)
-* [Abstract](#abstract)
-* [Basic Usage](#usage)
-* [API](#api)
+* [**Status**](#status)
+* [**Installation**](#installation)
+* [**Abstract**](#abstract)
+* [**Basic Usage**](#usage)
+* [**API**](#api)
   * [`compile(target[, opts], callback)`](#api-compile)
   * [`archive(target, objects[, opts], callback)`](#api-archive)
   * [`load(target[, opts], callback)`](#api-load)
@@ -34,16 +34,16 @@
     * [`target.stat(callback)`](#api-class-target-stat)
     * [`target.read(offset, size, callback)`](#api-class-target-read)
     * [`target.ready(callback)`](#api-class-target-ready)
-* [Command Line Interface](#cli)
-  * [The `tmc` Command](#cli-tmc)
-  * [Compiling Modules](#cli-compiling)
-  * [Archiving Compiled Modules](#cli-archiving-modules)
-  * [Copying Relocated Assets](#cli-copying-assets)
-  * [Archiving Relocated Assets](#cli-archiving-assets)
-  * [Unpacking Archives](#cli-unpacking)
-* [See Also](#see-also)
-* [Prior Art](#prior-art)
-* [License](#license)
+* [**Command Line Interface**](#cli)
+  * [**The `tmc` Command**](#cli-tmc)
+  * [**Compiling Modules**](#cli-compiling)
+  * [**Archiving Compiled Modules**](#cli-archiving-modules)
+  * [**Copying Relocated Assets**](#cli-copying-assets)
+  * [**Archiving Relocated Assets**](#cli-archiving-assets)
+  * [**Unpacking Archives**](#cli-unpacking)
+* [**See Also**](#see-also)
+* [**Prior Art**](#prior-art)
+* [**License**](#license)
 
 <a name="status"></a>
 ## Status
