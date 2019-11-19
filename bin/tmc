@@ -30,20 +30,16 @@ const argv = minimist(process.argv.slice(2), {
   ],
 
   alias: {
-    // bools
+    a: 'archive',
     A: 'assets',
+    c: 'compile',
+    C: 'copy-assets',
     D: 'debug',
+    e: 'external',
     h: 'help',
     M: 'source-map',
-    V: 'version',
-
-    // main
-    a: 'archive',
-    c: 'compile',
-
-    // config
-    e: 'external',
     o: 'output',
+    V: 'version',
     x: 'external',
   }
 })
@@ -52,13 +48,14 @@ const usage = `usage: tmc [-hDV] [options] ...input
 where options can be:
 
   -a, --archive             If present, will archive input into "tinybox" format
-  -A, --copy-assets         If present, will copy assets to directory of output
+  -A, --copy-assets         If present, will copy assets to directory of output (default: true)
   -c, --compile             If present, will compile input into header prefixed v8 cached data
+  -C,                       An alias for '--copy-assets'
   -D, --debug               If present, will enable debug output (DEBUG=tiny-module-compiler)
   -e, --external <module>   Specifies an external dependency that will be linked at runtime
   -h, --help                If present, will print this message
   -M, --source-map          If present, a source map will be generated
-  -o, --output <filename>   If present, will change the output filename
+  -o, --output <path>       If present, will change the output path. Assumes directory if multiple inputs given
   -V, --version             If present, will print the version number
   -x                        An alias for '--external'
 `
@@ -82,20 +79,22 @@ if (argv.help || 0 === argv._.length) {
   }
 }
 
-if (argv.compile || !argv.archive) { // default
-  argv.externals = [ ].concat(argv.external).filter(Boolean)
-  if (argv['source-map']) {
-    argv.map = true
-  }
+const opts = {
+  map: argv['source-map'],
+  debug: argv.debug,
+  output: argv.output,
+  externals: [ ].concat(argv.external).filter(Boolean)
+}
 
+if (argv.compile || !argv.archive) { // default
   if (argv.output && 'string' === typeof argv.output) {
-    argv.output = path.resolve(argv.output)
+    opts.output = path.resolve(argv.output)
     if (argv._.length > 1) {
-      mkdirp.sync(path.dirname(argv.output))
+      mkdirp.sync(path.dirname(opts.output))
     }
   }
 
-  compile(argv._, argv, (err, objects, assets) => {
+  compile(argv._, opts, (err, objects, assets) => {
     if (err) {
       console.error('error:', err.message)
       debug(err)
@@ -105,11 +104,7 @@ if (argv.compile || !argv.archive) { // default
     if (argv['copy-assets']) {
       const writes = new Batch()
       for (let [ filename, asset ] of assets) {
-        if (objects.size > 1) {
-          filename = path.join(argv.output, filename)
-        } else {
-          filename = path.join(path.dirname(argv.output), filename)
-        }
+        filename = path.resolve(filename)
         writes.push((next) => {
           const opts = { mode: asset.permissions }
           console.warn(' warn: writing asset %s (%s)',
@@ -133,7 +128,7 @@ if (argv.compile || !argv.archive) { // default
 }
 
 if (!argv.compile && argv.archive) {
-  archive(argv._[0], argv._.slice(1), argv, (err) => {
+  archive(argv._[0], argv._.slice(1), opts, (err) => {
     if (err) {
       console.error('error:', err.message)
       debug(err)
