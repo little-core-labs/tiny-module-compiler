@@ -86,7 +86,9 @@ class Target extends Resource {
    * @param {Function} callback
    */
   stat(callback) {
-    this.storage.stat(callback)
+    this.ready(() => {
+      this.storage.stat(callback)
+    })
   }
 
   /**
@@ -97,7 +99,9 @@ class Target extends Resource {
    * @param {Function} callback
    */
   read(offset, size, callback) {
-    this.storage.read(offset, size, callback)
+    this.ready(() => {
+      this.storage.read(offset, size, callback)
+    })
   }
 
   /**
