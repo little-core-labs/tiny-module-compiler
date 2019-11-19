@@ -112,8 +112,8 @@ section.
 Compiles a file specified at `target`. The default behavior is to write
 the output to a file of the same name as `target` with `.out` appended
 to the end. This behaviour can be configured by specifying an
-`opts.output` option or `opts.storage` as a custom [random-access-storage][ras]
-factory function.
+`opts.output` option or `opts.storage` as a custom
+[random-access-storage][ras] _factory function_.
 
 The value of `opts` is optional and can be:
 
@@ -169,9 +169,62 @@ compile(target, { storage: () => storage }, (err) => {
 ```
 
 <a name="api-archive"></a>
-### `archive(target, objects[, opts], callback)`
+### `archive(target, inputs[, opts], callback)`
 
-> TODO
+Archives the entries found in a given `inputs` `Map` into `target`. The
+default behaviour is to enumerate the entries in `inputs` and write them
+to a [TinyBox][tinybox] instance specified at `target` where the keys
+and values of the entries are "put" into the TinyBox storage that lives
+on disk. This behaviour can be configured by specifying `opts.storage`
+as a custom [random-access-storage][ras] _instance_.
+
+The value of `opts` is optional and can be:
+
+```js
+{
+  // custom 'random-access-storage' compliant object
+  storage: require('random-access-file')(target)
+}
+```
+
+#### Examples
+
+##### Simple Archive
+
+A simple example that archives the compiled objects of a compiled file.
+
+```js
+const { compile, archive } = require('tiny-module-compiler')
+
+// compile this file
+const target = __filename
+
+compile(target, (err, objects) => {
+  archive(__filename + '.a', objects, (err) => {
+    // `target` is compiled and then archived
+  })
+})
+```
+
+##### Simple Archive in Memory
+
+A simple example that archives the compiled objects of a compiled file
+into an in memory `random-access-memory` storage.
+
+```js
+const { compile, archive } = require('tiny-module-compiler')
+const ram = require('random-access-memory')
+
+// compile this file
+const target = __filename
+compile(target, { storage: ram }, (err) => {
+  const storage = ram()
+  archive(__filename + '.a', objects, { storage}, (err) => {
+    // `target` is compiled and then archived
+    // `storage` contains archived objects
+  })
+})
+```
 
 <a name="api-load"></a>
 ### `load(target[, opts], callback)`
@@ -337,6 +390,7 @@ compile(target, { storage: () => storage }, (err) => {
 MIT
 
 
+[ras]: https://github.com/random-access-storage/random-access-storage
 [ncc]: https://github.com/zeit/ncc
 [glob]: https://github.com/isaacs/node-glob
 [tinybox]: https://github.com/hyperdivision/tinybox
