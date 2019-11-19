@@ -147,8 +147,8 @@ class Compiler extends Pool {
             externals: opts.externals || [],
             cache: opts.cache || false,
             v8cache: false, // we'll do this manually
-            minify: false, // if `true` this can break cached builds
-            quiet: false !== opts.quiet, // @TODO: `false` in "debug"
+            minify: opts.minify && !opts.debug && !opts.map,
+            quiet: false !== opts.quiet
           }), (err, result) => {
             // istanbul ignore next
             if (err) { return next(err) }
