@@ -6,6 +6,7 @@ const uint64be = require('uint64be')
 const TinyBox = require('tinybox')
 const isUTF8 = require('isutf8')
 const varint = require('varint')
+const semver = require('semver')
 const ready = require('nanoresource-ready')
 const Batch = require('batch')
 const magic = require('./magic')
@@ -254,15 +255,33 @@ class Loader extends Pool {
       const versions = messages.Versions.decode(buffer.slice(0, versionsLength))
       buffer = buffer.slice(messages.Versions.decode.bytes)
 
+      const ourV8Version = semver.parse(process.versions.v8, { loose: true })
+      const theirV8Version = semver.parse(versions.v8, { loose: true })
+      const compareV8Version = (v) => ourV8Version[v] === theirV8Version[v]
+
+      // istanbul ignore next
+      if (
+        !compareV8Version('major') ||
+        !compareV8Version('minor') ||
+        !compareV8Version('patch')
+      ) {
+        return done(new Error(
+          `v8 version mismatch. ` +
+          `Expecting: "${versions.v8}". ` +
+          `Got: "${process.versions.v8}".`
+        ))
+      }
+
       // ensure versions in header match running process
       for (const name in versions) {
+        if ('v8' === name) { continue }
         // istanbul ignore next
         if (versions[name] !== process.versions[name]) {
-          return done(new Error(
+          debug(
             `${name} version mismatch. ` +
             `Expecting: "${versions[name]}". ` +
             `Got: "${process.versions[name]}".`
-          ))
+          )
         }
       }
 
