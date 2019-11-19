@@ -14,7 +14,9 @@ const noop = () => void 0
  * an archive on the file system or a `random-access-storage`
  * instance containing the archive data.
  * @param {String|Object} target
- * @param {Object} opts
+ * @param {?(Object)} opts
+ * @param {?(Function)} opts.storage
+ * @param {?(String)} opts.output
  * @param {Function} callback
  */
 function unpack(target, opts, callback) {
@@ -61,26 +63,28 @@ function unpack(target, opts, callback) {
     function onentry(entry) {
       batch.push((next) => {
         archive.get(entry.filename, (err, result) => {
+          const output = opts.output || process.cwd()
+          const filename = path.resolve(output, entry.filename)
           // istanbul ignore next
           if (err) { return next(err) }
           const shouldMkdirp = 'function' !== typeof opts.storage
 
           if (shouldMkdirp) {
-            const dirname = path.dirname(entry.filename)
+            const dirname = path.dirname(filename)
             return mkdirp(dirname, (err) => {
               // istanbul ignore next
               if (err) { return next(err) }
-              write(raf(entry.filename), next)
+              write(raf(filename), result.value, next)
             })
           }
 
-          write(opts.storage(entry.filename), next)
+          write(opts.storage(filename), result.value, next)
         })
       })
     }
 
-    function write(storage, done) {
-      storage.write(0, result.value, (err) => {
+    function write(storage, value, done) {
+      storage.write(0, value, (err) => {
         storage.close()
         done(err)
       })
