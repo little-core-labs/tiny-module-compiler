@@ -330,6 +330,7 @@ compile(target, { storage: () => storage }, (err) => {
 - https://github.com/OsamaAbbas/bytenode
 - https://github.com/zertosh/v8-compile-cache
 - https://github.com/v8/v8/blob/master/src/snapshot/code-serializer.h
+- https://hackernoon.com/how-to-compile-node-js-code-using-bytenode-11dcba856fa9
 
 ## License
 
