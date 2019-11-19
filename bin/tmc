@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-const { compile, archive } = require('../')
+const { compile, archive, unpack } = require('../')
 const { version } = require('../package.json')
 const prettyBytes = require('pretty-bytes')
 const minimist = require('minimist')
@@ -19,6 +19,7 @@ const argv = minimist(process.argv.slice(2), {
     'help',
     'optimize',
     'source-map',
+    'unpack',
     'verbose',
     'version',
   ],
@@ -41,6 +42,7 @@ const argv = minimist(process.argv.slice(2), {
     M: 'source-map',
     O: 'optimize',
     o: 'output',
+    u: 'unpack',
     v: 'verbose',
     V: 'version',
     x: 'external',
@@ -59,6 +61,7 @@ where options can be:
   -M, --source-map          If present, a source map will be generated
   -o, --output <path>       If present, will change the output path. Assumes directory if multiple inputs given
   -O, --optimize            If present, will optimize output by minifying JavaScript source prior to compilation
+  -u, --unpack              If present, will treat input as an archive and will unpack files to path specified by '--output'
   -v, --verbose             If present, will emit verbose output to stdout/stderr
   -V, --version             If present, will print the version number
   -x                        An alias for '--external'
@@ -92,7 +95,7 @@ const opts = {
   externals: [ ].concat(argv.external).filter(Boolean)
 }
 
-if (argv.compile || !argv.archive) { // default
+if (argv.compile || (!argv.archive && !argv.unpack)) { // default
   if (argv.output && 'string' === typeof argv.output) {
     opts.output = path.resolve(argv.output)
     if (argv._.length > 1) {
@@ -135,6 +138,14 @@ if (argv.compile || !argv.archive) { // default
 
 if (!argv.compile && argv.archive) {
   archive(argv._[0], argv._.slice(1), opts, (err) => {
+    if (err) {
+      console.error('error:', err.message)
+      debug(err)
+      return process.exit(1)
+    }
+  })
+} else if (!argv.compile && argv.unpack) {
+  unpack(argv._[0], opts, (err) => {
     if (err) {
       console.error('error:', err.message)
       debug(err)
