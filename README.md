@@ -41,6 +41,9 @@
   * [**Copying Relocated Assets**](#cli-copying-assets)
   * [**Archiving Relocated Assets**](#cli-archiving-assets)
   * [**Unpacking Archives**](#cli-unpacking)
+* [**Constraints**](#constraints)
+  * [**v8 Version**](#constraints-v8-version)
+  * [`Function.prototype.toString()`](#constraints-function-to-string)
 * [**See Also**](#see-also)
 * [**Prior Art**](#prior-art)
 * [**License**](#license)
@@ -48,7 +51,7 @@
 <a name="status"></a>
 ## Status
 
-> **Development/Testing/Documentation**
+> **Stable/Documentation**
 
 > [![Actions Status](https://github.com/little-core-labs/tiny-module-compiler/workflows/Node%20CI/badge.svg)](https://github.com/little-core-labs/tiny-module-compiler/actions)
 
@@ -62,7 +65,20 @@ $ npm install tiny-module-compiler
 <a name="abstract"></a>
 ## Abstract
 
-> TODO
+The `tiny-module-compiler` module is small toolkit for compiling
+JavaScript CommonJs modules into standalone binaries that leverage that
+v8 cache data format exposed by the [`vm`](https://nodejs.org/api/vm.html) API.
+Compiled module objects can be archived into a single file based on the
+[TinyBox][tinybox] file format and then unpacked later to disk.
+
+This toolkit allows for the compilation of an entire project into a single
+compiled binary object file. Multiple binary object files and various
+assets (`*.node`, `*.so`, etc) can be packaged into an archive and
+unpacked to disk for later use making it suitable as a delivery
+mechanism.
+
+Compiled modules objects can be loaded and executed but must be in a
+runtime that uses the same [version of v8](#constraints-v8-version).
 
 <a name="usage"></a>
 ## Basic Usage
@@ -87,12 +103,70 @@ tmc.compile(targets, (err, objects) => {
 
 ## API
 
-> TODO
+The `tiny-module-compiler` module exports a public API described in this
+section.
 
 <a name="api-compile"></a>
 ### `compile(target[, opts], callback)`
 
-> TODO
+Compiles a file specified at `target`. The default behavior is to write
+the output to a file of the same name as `target` with `.out` appended
+to the end. This behaviour can be configured by specifying an
+`opts.output` option or `opts.storage` as a custom [random-access-storage][ras]
+factory function.
+
+The value of `opts` is optional and can be:
+
+```js
+{
+  // current working directory for compilation
+  cwd: process.cwd(),
+
+  // output filename (single file compilation) or directory (multiple files)
+  output: target + '.out',
+
+  // custom storage factory function to return
+  // 'random-access-storage' compliant object
+  storage(filename) {
+    return require('random-access-file')(filename)
+  }
+}
+```
+
+#### Examples
+
+##### Simple Compilation
+
+A simple compilation example that compiles a target input file to an
+output file.
+
+```js
+const { compile } = require('tiny-module-compiler')
+
+// compile this file
+const target = __filename
+const output = __filename + '.out'
+compile(target, { output }, (err) => {
+  // `target` compiled to `output`
+})
+```
+
+##### Simple Compilation to Memory
+
+A simple compilation example that compiles a target input file to an in
+memory `random-access-memory` storage.
+
+```js
+const { compile } = require('tiny-module-compiler')
+const ram = require('random-access-memory')
+
+// compile this file
+const target = __filename
+const storage = ram()
+compile(target, { storage: () => storage }, (err) => {
+  // `target` compiled and written to `storage`
+})
+```
 
 <a name="api-archive"></a>
 ### `archive(target, objects[, opts], callback)`
@@ -255,6 +329,7 @@ tmc.compile(targets, (err, objects) => {
 - https://github.com/zeit/ncc
 - https://github.com/OsamaAbbas/bytenode
 - https://github.com/zertosh/v8-compile-cache
+- https://github.com/v8/v8/blob/master/src/snapshot/code-serializer.h
 
 ## License
 

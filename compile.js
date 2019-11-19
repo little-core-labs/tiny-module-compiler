@@ -8,6 +8,10 @@ const glob = require('glob')
  * Compiles the glob result of `target`
  * @param {String|Array} target
  * @param {?(Object)} opts
+ * @param {?(String)} opts.cwd
+ * @param {?(String)} opts.output
+ * @param {?(Object)} opts.storage
+ * @param {?(Boolean)} opts.autoOpen
  * @param {Function} callback
  * @return {Compiler}
  */
