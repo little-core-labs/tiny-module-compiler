@@ -87,8 +87,7 @@ class Loader extends Pool {
   }
 
   /**
-   * Waits for loader to be ready and calls `callback(err)` upon
-   * success or error
+   * Waits for loader to be ready and calling `callback()` when it is.
    * @param {Function} ready
    */
   ready(callback) {

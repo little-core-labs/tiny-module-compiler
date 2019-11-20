@@ -7,6 +7,9 @@ const assert = require('nanoassert')
  * archive, or `callback(err)` if an error occurs.
  * @param {String} target
  * @param {?(Object)} opts
+ * @param {?(Map)} opts.cache
+ * @param {?(String)} opts.cwd
+ * @param {?(Object)} opts.storage
  * @param {Function} callback
  * @return {Target}
  */

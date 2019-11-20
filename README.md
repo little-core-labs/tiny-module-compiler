@@ -10,26 +10,26 @@
 * [**Abstract**](#abstract)
 * [**Basic Usage**](#usage)
 * [**API**](#api)
-  * [`compile(target[, opts], callback)`](#api-compile)
-  * [`archive(target, objects[, opts], callback)`](#api-archive)
-  * [`load(target[, opts], callback)`](#api-load)
-  * [`unpack(target[, opts], callback)`](#api-unpack)
+  * [`compile(target[, options], callback)`](#api-compile)
+  * [`archive(target, objects[, options], callback)`](#api-archive)
+  * [`load(target[, options], callback)`](#api-load)
+  * [`unpack(target[, options], callback)`](#api-unpack)
   * [Class: `Compiler`](#api-class-compiler)
-    * [Constructor: `new Compiler([opts])`](#api-class-compiler-constructor)
+    * [Constructor: `new Compiler([options])`](#api-class-compiler-constructor)
     * [Accessor: `compiler.targets`](#api-class-compiler-targets)
     * [`compiler.ready(callback)`](#api-class-compiler-ready)
-    * [`compiler.target(filename[, opts], callback)`](#api-class-compiler-target)
-    * [`compiler.compile([opts], callback)`](#api-class-compiler-target)
+    * [`compiler.target(filename[, options], callback)`](#api-class-compiler-target)
+    * [`compiler.compile([options], callback)`](#api-class-compiler-target)
   * [Class: `Archiver`](#api-class-archiver)
-    * [Constructor: `new Archiver([opts])`](#api-class-archiver-constructor)
+    * [Constructor: `new Archiver([options])`](#api-class-archiver-constructor)
     * [`archiver.ready(callback)`](#api-class-archiver-ready)
-    * [`archiver.archive(filename, objects[, opts], callback)`](#api-class-archiver-archive)
+    * [`archiver.archive(filename, objects[, options], callback)`](#api-class-archiver-archive)
   * [Class: `Loader`](#api-class-loader)
-    * [Constructor: `new Loader([opts])`](#api-class-loader-constructor)
+    * [Constructor: `new Loader([options])`](#api-class-loader-constructor)
     * [`loader.ready(callback)`](#api-class-loader-ready)
-    * [`loader.load(filename[, opts], callback)`](#api-class-loader-load)
+    * [`loader.load(filename[, options], callback)`](#api-class-loader-load)
   * [Class: `Target`](#api-class-target)
-    * [Constructor: `new Target(filename[, opts])`](#api-class-target-constructor)
+    * [Constructor: `new Target(filename[, options])`](#api-class-target-constructor)
     * [Accessor: `target.fd`](#api-class-target-fd)
     * [`target.stat(callback)`](#api-class-target-stat)
     * [`target.read(offset, size, callback)`](#api-class-target-read)
@@ -67,14 +67,15 @@ $ npm install tiny-module-compiler
 
 The `tiny-module-compiler` module is small toolkit for compiling
 JavaScript CommonJs modules into standalone binaries that leverage that
-v8 cache data format exposed by the [`vm`](https://nodejs.org/api/vm.html) API.
-Compiled module objects can be archived into a single file based on the
-[TinyBox][tinybox] file format and then unpacked later to disk.
+v8 cache data format exposed by the [`vm`](https://nodejs.org/api/vm.html)
+API. Compiled module objects can be archived into a single file based on the
+[TinyBox][tinybox] file format and then unpacked later to the file
+system.
 
 This toolkit allows for the compilation of an entire project into a single
 compiled binary object file. Multiple binary object files and various
 assets (`*.node`, `*.so`, etc) can be packaged into an archive and
-unpacked to disk for later use making it suitable as a delivery
+unpacked to file system for later use making it suitable as a delivery
 mechanism.
 
 Compiled modules objects can be loaded and executed but must be in a
@@ -107,15 +108,15 @@ The `tiny-module-compiler` module exports a public API described in this
 section.
 
 <a name="api-compile"></a>
-### `compile(target[, opts], callback)`
+### `compile(target[, options], callback)`
 
 Compiles a file specified at `target`. The default behavior is to write
 the output to a file of the same name as `target` with `.out` appended
 to the end. This behaviour can be configured by specifying an
-`opts.output` option or `opts.storage` as a custom
+`options.output` option or `options.storage` as a custom
 [random-access-storage][ras] _factory function_.
 
-The value of `opts` is optional and can be:
+The value of `options` is optional and can be:
 
 ```js
 {
@@ -169,16 +170,16 @@ compile(target, { storage: () => storage }, (err) => {
 ```
 
 <a name="api-archive"></a>
-### `archive(target, inputs[, opts], callback)`
+### `archive(target, inputs[, options], callback)`
 
 Archives the entries found in a given `inputs` `Map` into `target`. The
 default behaviour is to enumerate the entries in `inputs` and write them
 to a [TinyBox][tinybox] instance specified at `target` where the keys
 and values of the entries are "put" into the TinyBox storage that lives
-on disk. This behaviour can be configured by specifying `opts.storage`
-as a custom [random-access-storage][ras] _instance_.
+on the file system. This behaviour can be configured by specifying
+`options.storage` as a custom [random-access-storage][ras] _instance_.
 
-The value of `opts` is optional and can be:
+The value of `options` is optional and can be:
 
 ```js
 {
@@ -227,114 +228,512 @@ compile(target, { storage: ram }, (err) => {
 ```
 
 <a name="api-load"></a>
-### `load(target[, opts], callback)`
+### `load(target[, options], callback)`
 
-> TODO
+Loads the exports from a module or the entries in archive specified at
+`target`. The default behaviour is to load the contents of the file
+specified at `target` as a compiled module and call `callback(err,
+exports)` upon success or error with the module exports. If `target` is
+a path to an archive represented by a [TinyBox][tinybox], then the
+entries are loaded and `callback(err, archive)` is called upon success
+or error. The storage of the compiled module or archive can be
+explicitly set by specifying `options.storage` as a custom
+[random-access-storage][ras] _instance_.
+
+The value of `options` is optional and can be:
+
+```js
+{
+  // custom 'random-access-storage' compliant object
+  storage: require('random-access-file')(target),
+
+  // custom cache `Map` store for loaded modules
+  cache: new Map(),
+
+  // current working directory to load module in
+  cwd: process.cwd()
+}
+```
+
+#### Example
+
+##### Simple Compile and Load
+
+A simple compilation and load example that compiles a target input file to an
+output file and then loads the exports.
+
+***file.js:***
+
+```js
+module.exports = {
+  hello() {
+    return 'world'
+  }
+}
+```
+
+***compile-and-load.js:***
+
+```js
+const { compile, load } = require('tiny-module-compiler')
+
+// compile this file
+const target = 'file.js'
+const output = target + '.out'
+compile(target, { output }, (err) => {
+  // `target` compiled to `output`
+  load(output, (err, exports) => {
+    // `exports` points to `module.exports` in `output`
+    console.log(exports.hello()) // 'world'
+  })
+})
+```
+
+##### Simple Compile and Load in Memory
+
+A simple compilation and load example that compiles a target input file to an
+in memory storage and then loads the exports from it.
+
+***file.js:***
+
+```js
+module.exports = {
+  hello() {
+    return 'world'
+  }
+}
+```
+
+***compile-and-load-in-memory.js:***
+
+```js
+const { compile, load } = require('tiny-module-compiler')
+const ram = require('random-access-memory')
+
+// compile this file
+const target = 'file.js'
+const storage = ram()
+compile(target, { storage: () => storage }, (err) => {
+  // `target` compiled to `storage`
+  load('loaded from memory', { storage }, (err, exports) => {
+    // `exports` points to `module.exports` in `output`
+    console.log(exports.hello()) // 'world'
+  })
+})
+```
 
 <a name="api-unpack"></a>
-### `unpack(target[, opts], callback)`
+### `unpack(target[, options], callback)`
 
-> TODO
+Unpacks `target` archive entries. The default behaviour is to enumerate
+the entries in the archive specified at `target` and copy them to the
+file system. This behaviour can be configured by specifying a `options.storage`
+[random-access-storage][ras] _factory function_ to provide custom
+storage for the archive entries. If `target` is a [random-access-storage][ras]
+instance, it will be used instead of reading from the file system.
+
+The value of `options` is optional and can be:
+
+```js
+{
+  // output path for default storage
+  output: process.cwd(),
+
+  // custom storage factory function to return
+  // 'random-access-storage' compliant object
+  storage(filename) {
+    return require('random-access-file')(filename)
+  }
+}
+```
+
+#### Example
+
+##### Simple Unpack
+
+A simple example to unpack an archive's entries to file system.
+
+```js
+const { unpack } = require('tiny-module-compiler')
+
+const archive = '/path/to/archive'
+unpack(archive, (err, entries) => {
+  // `archive` entries unpacked to file system
+  console.log(entries) // array of unpacked file names
+})
+```
+
+##### Simple Unpack in Memory
+
+A simple example to unpack an archive's entries to an in memory file
+store.
+
+```js
+const { unpack } = require('tiny-module-compiler')
+const ram = require('random-access-memory'
+
+const archive = '/path/to/archive'
+const files = new Map()
+
+unpack(archive, { storage: createStorage }, (err, entries) => {
+  // `archive` entries unpacked to file system
+  console.log(entries) // array of unpacked file names
+  for (const entry of entries) {
+    console.log(files[entry.filename])
+  }
+})
+
+function createStorage(filename) {
+  return files.set(filename, ram()).get(filename)
+}
+```
 
 <a name="api-class-compiler"></a>
 ### Class: `Compiler`
 
-> TODO
+* Extends: [`nanoresource-pool`][nanoresource-pool]
+
+The `Compiler` class represents a container of compile targets
+that can be compiled into a single binary file containing
+v8 cache data and header information about the compiled output.
 
 <a name="api-class-compiler-constructor"></a>
-#### Constructor: `new Compiler([opts])`
+#### Constructor: `new Compiler([options])`
 
-> TODO
+Creates a new [`Compiler`](#api-class-compiler) instance where `options`
+can be:
+
+```js
+{
+  // current working directory for compilation
+  cwd: process.cwd()
+}
+```
+
+##### Example
+
+```js
+const compiler = new Compiler()
+```
 
 <a name="api-class-compiler-targets"></a>
 #### Accessor: `compiler.targets`
 
-> TODO
+* `Array<String>`
+
+All opened targets in the compiler.
+
+##### Example
+
+```js
+for (const target of compiler.targets) {
+  // handle opened `target`
+}
+```
 
 <a name="api-class-compiler-ready"></a>
 #### `compiler.ready(callback)`
 
-> TODO
+Waits for compiler to be ready and calls `callback()` upon success.
+
+##### Example
+
+```js
+compiler.ready(() => {
+  // `compiler` is opened and ready
+})
+```
 
 <a name="api-class-compiler-target"></a>
-#### `compiler.target(filename[, opts], callback)`
+#### `compiler.target(filename[, options], callback)`
 
-> TODO
+Creates and returns a new compile [target](#api-class-target) that is added
+to compiler pool calling `callback(err, target)` when the target resource
+is opened or an error occurs. The target will be compiled when
+[`compiler.compiler()`](#api-class-compiler-compile) is called.
+
+The value of `options` can be:
+
+```js
+{
+  // the default output for a compilation target
+  output: target + '.out',
+
+  // custom storage factory function to return
+  // 'random-access-storage' compliant object
+  storage(filename) {
+    return require('random-access-file')(filename)
+  }
+}
+```
+
+##### Example
+
+```js
+compiler.target('/path/to/file.js', (err, target) => {
+  // `target` is an opened `nanoresource`
+})
+```
 
 <a name="api-class-compiler-compile"></a>
-#### `compiler.compile([opts], callback)`
+#### `compiler.compile([options], callback)`
 
-> TODO
+Compiles all pending compile [targets](#api-class-compiler-target) calling
+`callback(err, objects, assets)` upon success or error. Callback will be
+given a `Map` of compiled objects and a `Map` of extracted assets that
+should live with the compiled objects on the file system.
+
+The value of `options` can be:
+
+```js
+{
+  // if `true`, will produce a source map stored in the `assets` map
+  map: false,
+
+  // if `false`, `ncc` will produce verbose output
+  quiet: true,
+
+  // if `true`, will use `ncc` cache for faster builds
+  cache: false,
+
+  // if `true`, will produce compiled javascript source debug output
+  debug: false,
+
+  // if `true`, will minify compiled javascript source before creating binary
+  optimize: false,
+
+  // an array of external modules that should _not_ be compiled
+  externals: [],
+}
+```
+
+##### Example
+
+```js
+compiler.compile({ externals: ['sodium-native'] }, (err, objects, assets) => {
+  // `objects` is a `Map` mapping file names to compiled module objects
+  // `assets` is a `Map` mapping file names to assets that should be copied
+})
+```
 
 <a name="api-class-archiver"></a>
 ### Class: `Archiver`
 
-> TODO
+* Extends: [`nanoresource`][nanoresource]
+
+The `Archiver` class represents an abstraction for storing
+compiled objects into a [TinyBox][tinybox]
 
 <a name="api-class-archiver-constructor"></a>
-#### Constructor: `new Archiver([opts])`
+#### Constructor: `new Archiver([options])`
 
-> TODO
+Creates a new [`Archiver`](#api-class-archiver) instance where `options`
+can be:
+
+```js
+{
+  // default custom storage factory function to return
+  // 'random-access-storage' compliant object used in
+  // `archiver.archive()` calls. This storage can be overloaded
+  // by supplying a storage factory function to `archiver.archive()`
+  storage(filename) {
+    return require('random-access-file')(filename)
+  }
+}
+```
+
+##### Example
+
+```js
+const ram = require('random-access-memory')
+
+// in memory archiver
+const archiver = new Archiver({ storage: ram })
+```
 
 <a name="api-class-archiver-ready"></a>
 #### `archiver.ready(callback)`
 
-> TODO
+Waits for archiver to be ready and calling `callback()` when it is.
+
+##### Example
+
+```js
+archiver.ready(() => {
+  // `archiver` is opened and ready
+})
+```
 
 <a name="api-class-archiver-archive"></a>
-#### `archiver.archive(filename, objects[, opts], callback)`]
+#### `archiver.archive(filename, inputs[, options], callback)`]
 
-> TODO
+Archives the entries found in a given `inputs` `Map` into `target`. The
+underlying storage for `filename` can be given by `options.storage` or a
+new one is created by the `storage` factory function given to the
+[`Archiver`](#api-class-archiver-constructor) class constructor.
+`callback(err)` is called upon success or error.
+
+The value of `options` can be:
+
+```js
+{
+  // custom 'random-access-storage' compliant object
+  // where `inputs` are archived to
+  storage: require('random-access-file')(filename)
+}
+```
+
+##### Example
+
+```js
+const extend = require('map-extend')
+
+compiler.compile((err, objects, assets) => {
+  // merge `objects` and `assets` and archive
+  archiver.archive('/path/to/archive', extend(objects, assets), (err) => {
+    // inputs should be archived
+  })
+```
 
 <a name="api-class-loader"></a>
 ### Class: `Loader`
 
-> TODO
+* Extends: [`nanoresource-pool`][nanoresource-pool]
+
+The `Loader` class represents an abstraction for loading compiled
+module objects and JavaScript sources as node modules.
 
 <a name="api-class-loader-constructor"></a>
-#### Constructor: `new Loader([opts])`
+#### Constructor: `new Loader([options])`
 
-> TODO
+Creates a new [`Loader`](#api-class-loader) instance where `options`
+can be:
+
+```js
+{
+  // custom cache `Map` store for loaded modules
+  cache: new Map()
+}
+```
 
 <a name="api-class-loader-ready"></a>
 #### `loader.ready(callback)`
 
-> TODO
+Waits for loader to be ready and calling `callback()` when it is.
+
+##### Example
+
+```js
+loader.ready(() => {
+  // `loader` is opened and ready
+})
+```
 
 <a name="api-class-loader-load"></a>
-#### `loader.load(filename[, opts], callback)`
+#### `loader.load(filename[, options], callback)`
 
-> TODO
+Loads a compiled module object or JavaScript source module
+specified at filename calling `callback(err, exports)` upon success
+or error. Success loads will cache resulting module for subsequent
+requests to load the module.
+
+The value of `options` can be:
+
+```js
+{
+  // custom 'random-access-storage' compliant object
+  // where module is loaded from
+  storage: require('random-access-file')(filename)
+}
+```
+
+##### Example
+
+```js
+loader.load('/path/to/compiled/module.js', (err, exports) => {
+  // `exports` points to `module.exports` of loaded module
+})
+```
 
 <a name="api-class-target"></a>
 ### Class: `Target`
 
-> TODO
+* Extends: [`nanoresource`][nanoresource]
+
+The `Target` class represents a [`nanoresource`][nanoresource] to a target
+file backed by a [`random-access-storage`][ras] instance.
 
 <a name="api-class-target-constructor"></a>
-#### Constructor: `new Target(filename[, opts])`
+#### Constructor: `new Target(filename[, options])`
 
-> TODO
+Creates a new [`Target`](#api-class-target) instance where `filename`
+is the name of the target file and `options` can be:
+
+```js
+{
+  // custom 'random-access-storage' compliant object
+  // where file is loaded from
+  storage: require('random-access-file')(filename)
+}
+```
+
+***Note:*** _This class is intended for internal and advanced use. You
+will most likely not use this directly._
+
+##### Example
+
+```js
+const target = new Target('/path/to/file.js')
+```
 
 <a name="api-class-target-fd"></a>
 #### Accessor: `target.fd`
 
-> TODO
+* `?(Number)`
+
+The active file descriptor for the target resource. Will be `null`
+if not opened.
 
 <a name="api-class-target-stat"></a>
 #### `target.stat(callback)`
 
-> TODO
+Queries for stats from the underlying target storage calling
+`callback(err, stats)` upon success or error.
+
+##### Example
+
+```js
+target.stat((err, stats) => {
+  console.log(stats.size)
+})
+```
 
 <a name="api-class-target-read"></a>
 #### `target.read(offset, size, callback)`
 
-> TODO
+Reads data from the underlying target storage at a specified `offset` and
+`size` calling `callback(err, buffer)` upon success or error.
+
+##### Example
+
+```js
+taret.read(32, 64, (err, buffer) => {
+  console.log(buffer)
+})
+```
 
 <a name="api-class-target-ready"></a>
 #### `target.ready(callback)`
 
-> TODO
+Waits for loader to be ready and calling `callback()` when it is.
+
+##### Example
+
+```js
+target.ready(() => {
+  // `target` is opened and ready
+})
+```
 
 <a name="cli"></a>
 ### Command Line Interface
@@ -373,13 +772,14 @@ compile(target, { storage: ram }, (err) => {
 
 ## See Also
 
+- [nanoresource-pool][nanoresource-pool]
+- [nanoresource][nanoresource]
 - [tinybox][tinybox]
 - [@zeit/ncc][ncc]
 - [glob][glob]
 
 ## Prior Art
 
-- https://github.com/zeit/ncc
 - https://github.com/OsamaAbbas/bytenode
 - https://github.com/zertosh/v8-compile-cache
 - https://github.com/v8/v8/blob/master/src/snapshot/code-serializer.h
@@ -389,8 +789,9 @@ compile(target, { storage: ram }, (err) => {
 
 MIT
 
-
 [ras]: https://github.com/random-access-storage/random-access-storage
 [ncc]: https://github.com/zeit/ncc
 [glob]: https://github.com/isaacs/node-glob
 [tinybox]: https://github.com/hyperdivision/tinybox
+[nanoresource]: https://github.com/mafintosh/nanoresource
+[nanoresource-pool]: https://github.com/little-core-labs/nanoresource-pool

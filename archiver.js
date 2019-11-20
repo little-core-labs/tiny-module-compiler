@@ -35,7 +35,7 @@ class Archiver extends Resource {
   }
 
   /**
-   * Waits for compiler to be ready and calling `callback()`
+   * Waits for archiver to be ready and calling `callback()`
    * when it is.
    * @param {Function} ready
    */

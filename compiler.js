@@ -62,8 +62,8 @@ class Compiler extends Pool {
   }
 
   /**
-   * Waits for compiler to be ready and calls `callback(err)` upon
-   * success or error
+   * Waits for compiler to be ready and calls `callback()` upon
+   * success.
    * @param {Function} ready
    */
   ready(callback) {
@@ -72,7 +72,8 @@ class Compiler extends Pool {
 
   /**
    * Creates and returns a new compile target that is added to
-   * compiler pool. The target will be compiled when `
+   * compiler pool. The target will be compiled when `compiler.compile()`
+   * is called.
    * @param {String} filename
    * @param {?(Object)} opts
    * @param {?(String)} opts.output
@@ -112,7 +113,7 @@ class Compiler extends Pool {
    * Compiles all pending compile targets calling
    * `callback(err, objects, assets)` upon success or error. Callback
    * will be given a `Map` of compiled objects and a `Map` of extracted
-   * assets that should live with the compiled objects on disk.
+   * assets that should live with the compiled objects on the file system.
    * @param {?(Object)} opts
    * @param {?(Boolean)} opts.map
    * @param {?(Boolean)} opts.cache
@@ -149,7 +150,7 @@ class Compiler extends Pool {
         const shouldOptimize = (opts.minify || opts.optimize)
 
         batch.push((next) => {
-          // assume target is on disk for now
+          // assume target is on the file system for now
           errback(ncc(filename, {
             sourceMap: opts.map || false,
             externals: opts.externals || [],

@@ -78,7 +78,7 @@ function unpack(target, opts, callback) {
             })
           }
 
-          write(opts.storage(filename), result.value, next)
+          write(opts.storage(entry.filename), result.value, next)
         })
       })
     }

@@ -105,8 +105,7 @@ class Target extends Resource {
   }
 
   /**
-   * Waits for compiler to be ready and calls `callback(err)` upon
-   * success or error
+   * Waits for target to be ready and calling `callback()` when it is.
    * @param {Function} ready
    */
   ready(callback) {
