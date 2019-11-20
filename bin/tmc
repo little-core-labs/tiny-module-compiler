@@ -49,7 +49,7 @@ const argv = minimist(process.argv.slice(2), {
   }
 })
 
-const usage = `usage: tmc [-hDV] [options] ...input
+const usage = `usage: tmc [-hV] [-acu] [-vCDMO] [options] ...input
 where options can be:
 
   -a, --archive             If present, will archive input into "tinybox" format
@@ -65,7 +65,7 @@ where options can be:
   -v, --verbose             If present, will emit verbose output to stdout/stderr
   -V, --version             If present, will print the version number
   -x                        An alias for '--external'
-`
+`.trim()
 
 if (argv.version) {
   console.log(version)
@@ -89,6 +89,7 @@ if (argv.help || 0 === argv._.length) {
 const opts = {
   map: argv['source-map'],
   debug: argv.debug,
+  cache: true,
   quiet: argv.verbose ? false : true,
   minify: argv.optimize || argv.minify,
   output: argv.output,
@@ -137,7 +138,9 @@ if (argv.compile || (!argv.archive && !argv.unpack)) { // default
 }
 
 if (!argv.compile && argv.archive) {
-  archive(argv._[0], argv._.slice(1), opts, (err) => {
+  const target = argv._[0]
+  const inputs = argv._.slice(1)
+  archive(target, inputs, opts, (err) => {
     if (err) {
       console.error('error:', err.message)
       debug(err)

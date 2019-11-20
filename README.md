@@ -35,7 +35,7 @@
     * [`target.read(offset, size, callback)`](#api-class-target-read)
     * [`target.ready(callback)`](#api-class-target-ready)
 * [**Command Line Interface**](#cli)
-  * [**The `tmc` Command**](#cli-tmc)
+  * [**The `tmc(1)` Command**](#cli-tmc)
   * [**Compiling Modules**](#cli-compiling)
   * [**Archiving Compiled Modules**](#cli-archiving-modules)
   * [**Copying Relocated Assets**](#cli-copying-assets)
@@ -738,37 +738,108 @@ target.ready(() => {
 <a name="cli"></a>
 ### Command Line Interface
 
-> TODO
+The `tiny-module-compiler` exposes a command line interface through the
+`tmc` command that is suitable for compiling, archiving, and unpacking
+compiled modules and their assets.
+
+This section describes the command line interface and a few workflows
+for making the best use of the `tmc` command.
 
 <a name="cli-tmc"></a>
-#### The `tmc` Command
+#### The `tmc(1)` Command
 
-> TODO
+The `tmc` command has a command line signature of the following:
+
+```sh
+tmc [-hV] [-acu] [-vCDMO] [options] ...input
+```
+
+Where `options` can be:
+
+```sh
+  -a, --archive             If present, will archive input into "tinybox" format
+  -c, --compile             If present, will compile input into header prefixed v8 cached data
+  -C, --copy-assets         If present, will copy assets to directory of output (default: true)
+  -D, --debug               If present, will enable debug output (DEBUG=tiny-module-compiler)
+  -e, --external <module>   Specifies an external dependency that will be linked at runtime
+  -h, --help                If present, will print this message
+  -M, --source-map          If present, a source map will be generated
+  -o, --output <path>       If present, will change the output path. Assumes directory if multiple inputs given
+  -O, --optimize            If present, will optimize output by minifying JavaScript source prior to compilation
+  -u, --unpack              If present, will treat input as an archive and will unpack files to path specified by '--output'
+  -v, --verbose             If present, will emit verbose output to stdout/stderr
+  -V, --version             If present, will print the version number
+  -x                        An alias for '--external'
+```
 
 <a name="cli-compiling"></a>
 #### Compiling Modules
 
-> TODO
+The simplest use of the `tmc` command is to compile a single file. By
+default, the `-c` (or `--compile`) is assumed if `-a` (or
+`--archive`) and `-u` (or `--unpack`) flags are **not present**.
+
+```sh
+$ tmc file.js ## will write ./file.js.out
+```
+
+The output of the compiled file can be configured using the `-o` (or `--output`)
+flag to set the output name.
+
+```sh
+$ tmc file.js -o file.compiled.js
+```
+
+If multiple inputs were given, then the output
+value will be a directory and the original file names are preserved.
+
+```sh
+$ tmc *.js -o build/
+```
 
 <a name="cli-archiving-modules"></a>
 #### Archiving Compiled Modules
 
-> TODO
+After compiling modules it may be useful to archive them into a single
+file. This is often beneficial if the compiled module contained static
+assets that need to live on the file system alongside the compiled
+module file during runtime.
 
-<a name="cli-copying-assets"></a>
-#### Copying Relocated Assets
+The `tmc` command makes it easy to specify a number of files that
+should be added to an archive by making use of the `-a` (or `--archive`)
+flag to indicate that inputs should be archived.
 
-> TODO
+```sh
+$ tmc -a modules.archive *.compiled.js ## archives all `*.compiled.js` files into `modules.archive`
+```
 
-<a name="cli-archiving-assets"></a>
-#### Archiving Relocated Assets
+Any asset can be added to an archive as well.
 
-> TODO
+```sh
+$ tmc -a modules.archive *.node ## archives all `*.node` files into `modules.archive`
+```
+
+The `modules.archive` file contains an index of entries added to it by
+file name. The archive can be [unpacked](#cli-unpacking) using the `tmc`
+command as well.
 
 <a name="cli-unpacking"></a>
 #### Unpacking Archives
 
-> TODO
+Compiled modules and their assets living in an archive can be easily
+unpacked to the file system. The `tmc` command makes it easy to unpack
+entries in an archive.
+
+```sh
+$ tmc -u modules.archive
+```
+
+The output of the entries can be specified with the `-o` (or `--output`)
+flag.
+
+```sh
+$ tmc -u modules.archive -o build/
+```
 
 ## See Also
 
