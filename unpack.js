@@ -4,9 +4,17 @@ const mkdirp = require('mkdirp')
 const Batch = require('batch')
 const path = require('path')
 const raf = require('random-access-file')
+const fs = require('fs')
 
 // quick util
 const noop = () => void 0
+
+/**
+ * Mask applied to `entry.mode` to get permissions value.
+ * @private
+ */
+const FS_STAT_MODE_MASK = 0x1ff // 0777
+
 
 /**
  * Unpacks `target` archive to disk or optionally, a given
@@ -68,18 +76,23 @@ function unpack(target, opts, callback) {
           const filename = path.resolve(output, entry.filename)
           // istanbul ignore next
           if (err) { return next(err) }
-          const shouldMkdirp = 'function' !== typeof opts.storage
+          const { buffer, mode } = messages.Archive.Entry.decode(result.value)
+          const hasCustomStorage = 'function' === typeof opts.storage
 
-          if (shouldMkdirp) {
+          if (!hasCustomStorage) {
             const dirname = path.dirname(filename)
             return mkdirp(dirname, (err) => {
               // istanbul ignore next
               if (err) { return next(err) }
-              write(raf(filename), result.value, next)
+              write(raf(filename), buffer, (err) => {
+                // istanbul ignore next
+                if (err) { return next(err) }
+                fs.chmod(filename, mode & FS_STAT_MODE_MASK, next)
+              })
             })
           }
 
-          write(opts.storage(entry.filename), result.value, next)
+          write(opts.storage(entry.filename), buffer, next)
         })
       })
     }

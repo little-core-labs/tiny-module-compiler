@@ -224,7 +224,17 @@ class Loader extends Pool {
             archive.get(entry.filename, (err, result) => {
               // istanbul ignore next
               if (err) { return next(err) }
-              onbuffer(result.value, (err, result) => {
+              let buffer = entry.result
+
+              try {
+                const decoded = messages.Archive.Entry.decode(result.value)
+                buffer = decoded.buffer
+              } catch (err) {
+                // istanbul ignore next
+                void err
+              }
+
+              onbuffer(buffer, (err, result) => {
                 // istanbul ignore next
                 if (err) { return next(err) }
                 next(null, { [entry.filename]: result })

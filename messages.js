@@ -237,6 +237,13 @@ function defineOptions () {
 }
 
 function defineArchive () {
+  var Entry = Archive.Entry = {
+    buffer: true,
+    encodingLength: null,
+    encode: null,
+    decode: null
+  }
+
   var Index = Archive.Index = {
     buffer: true,
     encodingLength: null,
@@ -244,7 +251,96 @@ function defineArchive () {
     decode: null
   }
 
+  defineEntry()
   defineIndex()
+
+  function defineEntry () {
+    var enc = [
+      encodings.varint,
+      encodings.bytes
+    ]
+
+    Entry.encodingLength = encodingLength
+    Entry.encode = encode
+    Entry.decode = decode
+
+    function encodingLength (obj) {
+      var length = 0
+      if (defined(obj.mode)) {
+        var len = enc[0].encodingLength(obj.mode)
+        length += 1 + len
+      }
+      if (defined(obj.size)) {
+        var len = enc[0].encodingLength(obj.size)
+        length += 1 + len
+      }
+      if (defined(obj.buffer)) {
+        var len = enc[1].encodingLength(obj.buffer)
+        length += 1 + len
+      }
+      return length
+    }
+
+    function encode (obj, buf, offset) {
+      if (!offset) offset = 0
+      if (!buf) buf = Buffer.allocUnsafe(encodingLength(obj))
+      var oldOffset = offset
+      if (defined(obj.mode)) {
+        buf[offset++] = 8
+        enc[0].encode(obj.mode, buf, offset)
+        offset += enc[0].encode.bytes
+      }
+      if (defined(obj.size)) {
+        buf[offset++] = 16
+        enc[0].encode(obj.size, buf, offset)
+        offset += enc[0].encode.bytes
+      }
+      if (defined(obj.buffer)) {
+        buf[offset++] = 26
+        enc[1].encode(obj.buffer, buf, offset)
+        offset += enc[1].encode.bytes
+      }
+      encode.bytes = offset - oldOffset
+      return buf
+    }
+
+    function decode (buf, offset, end) {
+      if (!offset) offset = 0
+      if (!end) end = buf.length
+      if (!(end <= buf.length && offset <= buf.length)) throw new Error("Decoded message is not valid")
+      var oldOffset = offset
+      var obj = {
+        mode: 0,
+        size: 0,
+        buffer: null
+      }
+      while (true) {
+        if (end <= offset) {
+          decode.bytes = offset - oldOffset
+          return obj
+        }
+        var prefix = varint.decode(buf, offset)
+        offset += varint.decode.bytes
+        var tag = prefix >> 3
+        switch (tag) {
+          case 1:
+          obj.mode = enc[0].decode(buf, offset)
+          offset += enc[0].decode.bytes
+          break
+          case 2:
+          obj.size = enc[0].decode(buf, offset)
+          offset += enc[0].decode.bytes
+          break
+          case 3:
+          obj.buffer = enc[1].decode(buf, offset)
+          offset += enc[1].decode.bytes
+          break
+          default:
+          offset = skip(prefix & 7, buf, offset)
+        }
+      }
+    }
+  }
 
   function defineIndex () {
     var Entry = Index.Entry = {

@@ -8,6 +8,7 @@ const mkdirp = require('mkdirp')
 const Batch = require('batch')
 const debug = require('debug')('tiny-module-compiler')
 const path = require('path')
+const glob = require('glob')
 const fs = require('fs')
 const os = require('os')
 
@@ -162,6 +163,9 @@ if (argv.compile || (!argv.archive && !argv.unpack && !argv.load)) { // default
 } else if (argv.archive) {
   const target = argv._[0]
   const inputs = argv._.slice(1)
+    .map((input) => '/' === input.slice(-1) ? input + '**' : input)
+    .map((input) => glob.sync(input, { nodir: true }))
+    .reduce((a, b) => a.concat(b), [])
   archive(target, inputs, opts, (err) => {
     if (err) {
       console.error('error:', err.message)
