@@ -51,6 +51,8 @@ class Archiver extends Resource {
    * @param {Array|Map} objects
    * @param {?(Object)} opts
    * @param {?(Object)} opts.storage
+   * @param {?(Boolean)} opts.truncate
+   * @param {?(Number)} opts.concurrency
    * @param {Function} callback
    */
   archive(filename, objects, opts, callback) {
@@ -88,7 +90,7 @@ class Archiver extends Resource {
       const filenames = [ ...objects.keys() ]
       const entries = filenames.sort().map((filename, id) => ({ id, filename }))
       const storage = opts.storage || this.storage(filename)
-      const batch = new Batch()
+      const batch = new Batch().concurrency(opts.concurrency || Infinity)
       const box = new TinyBox(storage)
 
       const versions = messages.Versions.encode(process.versions)
