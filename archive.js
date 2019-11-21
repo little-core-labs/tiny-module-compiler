@@ -7,8 +7,11 @@ const { Archiver } = require('./archiver')
  * @param {String} target
  * @param {Array|Map} objects
  * @param {?(Object)} opts
+ * @param {?(Object)} opts.storage
+ * @param {?(Boolean)} opts.truncate
+ * @param {?(Number)} opts.concurrency
  * @param {Function} callback
-*/
+ */
 function archive(target, objects, opts, callback) {
   if ('function' === typeof opts) {
     callback = opts
