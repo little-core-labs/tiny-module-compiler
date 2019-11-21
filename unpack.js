@@ -15,8 +15,9 @@ const noop = () => void 0
  * instance containing the archive data.
  * @param {String|Object} target
  * @param {?(Object)} opts
- * @param {?(Function)} opts.storage
  * @param {?(String)} opts.output
+ * @param {?(Function)} opts.storage
+ * @param {?(Number)} opts.concurrency
  * @param {Function} callback
  */
 function unpack(target, opts, callback) {
@@ -46,7 +47,7 @@ function unpack(target, opts, callback) {
     }
 
     const index = messages.Archive.Index.decode(result.value)
-    const batch = new Batch()
+    const batch = new Batch().concurrency(opts.concurrency || Infinity)
 
     for (const entry of index.entries) {
       onentry(entry)
