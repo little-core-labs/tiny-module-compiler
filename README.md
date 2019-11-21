@@ -41,6 +41,7 @@
   * [**Copying Relocated Assets**](#cli-copying-assets)
   * [**Archiving Relocated Assets**](#cli-archiving-assets)
   * [**Unpacking Archives**](#cli-unpacking)
+  * [**Loading Modules & Archives**](#cli-loading)
 * [**Constraints**](#constraints)
   * [**v8 Version**](#constraints-v8-version)
   * [`Function.prototype.toString()`](#constraints-function-to-string)
@@ -183,6 +184,9 @@ The value of `options` is optional and can be:
 
 ```js
 {
+  // if `false`, will not truncate archive storage
+  truncate: true,
+
   // custom 'random-access-storage' compliant object
   storage: require('random-access-file')(target)
 }
@@ -577,6 +581,9 @@ The value of `options` can be:
 
 ```js
 {
+  // if `false`, will not truncate archive storage
+  truncate: true,
+
   // custom 'random-access-storage' compliant object
   // where `inputs` are archived to
   storage: require('random-access-file')(filename)
@@ -759,10 +766,13 @@ Where `options` can be:
 ```sh
   -a, --archive             If present, will archive input into "tinybox" format
   -c, --compile             If present, will compile input into header prefixed v8 cached data
-  -C, --copy-assets         If present, will copy assets to directory of output (default: true)
+    , --concurrency <jobs>  An alias for '--jobs'
+  -C, --copy-assets         If present, will copy assets to directory of output
   -D, --debug               If present, will enable debug output (DEBUG=tiny-module-compiler)
   -e, --external <module>   Specifies an external dependency that will be linked at runtime
   -h, --help                If present, will print this message
+  -l, --load                If present, will load inputs
+  -j, --jobs <jobs>         Specifies the number of concurrent jobs for batch tasks (--load, --archive, --copy-assets)
   -M, --source-map          If present, a source map will be generated
   -o, --output <path>       If present, will change the output path. Assumes directory if multiple inputs given
   -O, --optimize            If present, will optimize output by minifying JavaScript source prior to compilation
@@ -840,6 +850,66 @@ flag.
 ```sh
 $ tmc -u modules.archive -o build/
 ```
+
+<a name="cli-loading"></a>
+#### Loading Modules & Archives
+
+Compiled modules and packed archives can be loaded at runtime in an
+application. The `tmc` command provides a simple way to do this from the
+command line from array of inputs by making use of the `-l` (or
+`--load`) flag to indicate the inputs should be loaded.
+
+```sh
+$ tmc -l module.compiled.js
+```
+
+Archives can be loaded as well.
+
+```sh
+$ tmc -l modules.archive
+```
+
+Regular JavaScript files an be given as input.
+
+```sh
+$ tmc -l file.js
+```
+
+Multiple inputs can be loaded.
+
+```sh
+$ tmc -l modules.archive file.js module.compiled
+```
+
+The load concurrency can be set by specifying the `-j` (or `--jobs` or
+`--concurrency`) flag to indicate the number of concurrent loads that
+can occur when loading the inputs.
+
+```sh
+$ tmc -l -j1 modules.archive file.js module.compiled ## one at a time
+```
+
+<a name="constraints"></a>
+## Constraints
+
+The `tiny-module-compile` module ships with a few constrains due to the
+nature of how v8 cache data works. They are described in this section.
+
+<a name="constraints-v8-version"></a>
+### v8 Version
+
+The **v8 version** (`process.versions.v8`) in the runtime of `node` used
+to compile modules to v8 cache data must match the one used to load. The
+module will throw an error if the versions do not match as unexpected
+behaviour may occur.
+
+<a name="constraints-function-to-string"></a>
+### `Function.prototype.toString()`
+
+For user-defined functions,
+[`Function.prototype.toString()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function/toString)
+may not work as expected or not at all because the string source code
+representation of the function is lost after compilation.
 
 ## See Also
 
