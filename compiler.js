@@ -5,6 +5,7 @@ const messages = require('./messages')
 const varint = require('varint')
 const rimraf = require('rimraf')
 const Batch = require('batch')
+const debug = require('debug')('tiny-module-compiler:compiler')
 const magic = require('./magic')
 const ready = require('nanoresource-ready')
 const path = require('path')
@@ -150,6 +151,7 @@ class Compiler extends Pool {
         const shouldOptimize = (opts.minify || opts.optimize)
 
         batch.push((next) => {
+          debug('compile', filename)
           // assume target is on the file system for now
           errback(ncc(filename, {
             sourceMap: opts.map || false,
