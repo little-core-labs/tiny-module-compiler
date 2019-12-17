@@ -135,8 +135,9 @@ class Loader extends Pool {
     const contextModule = new Module(filename)
 
     // istanbul ignore next
-    const contextRequire = 'function' === typeof Module.createRequireFromPath
-      ? Module.createRequireFromPath(filename)
+    const createRequireFromPath = Module.createRequire || Module.createRequireFromPath
+    const contextRequire = 'function' === typeof createRequireFromPath
+      ? createRequireFromPath(filename)
       : makeRequireFunction(contextModule)
 
     Object.assign(contextModule, {
