@@ -134,7 +134,7 @@ class Compiler extends Pool {
       opts = {}
     }
 
-    const { targets } = this
+    const { targets, cwd } = this
     const objects = new Map()
     const assets = new Map()
     const writes = new Batch()

@@ -29,10 +29,12 @@
   "dependencies": {
     "@vercel/ncc": "^0.31.1",
     "batch": "^0.6.1",
+    "cp-file": "^9.1.0",
     "debug": "^4.1.1",
     "glob": "^7.1.5",
     "isutf8": "^4.0.0",
     "minimist": "^1.2.0",
+    "mirror-folder": "^3.1.0",
     "mkdirp": "^1.0.4",
     "nanoassert": "^2.0.0",
     "nanoresource": "^1.2.0",
