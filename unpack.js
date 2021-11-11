@@ -81,9 +81,9 @@ function unpack(target, opts, callback) {
 
           if (!hasCustomStorage) {
             const dirname = path.dirname(filename)
-            return mkdirp(dirname, (err) => {
-              // istanbul ignore next
-              if (err) { return next(err) }
+            const promise = mkdirp(dirname)
+            promise.catch((err) => next(err))
+            return promise.then(() => {
               write(raf(filename), buffer, (err) => {
                 // istanbul ignore next
                 if (err) { return next(err) }

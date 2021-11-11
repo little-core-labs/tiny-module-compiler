@@ -4,15 +4,42 @@ const { compile, archive, unpack, load } = require('../')
 const { version } = require('../package.json')
 const prettyBytes = require('pretty-bytes')
 const minimist = require('minimist')
+const mirror = require('mirror-folder')
 const mkdirp = require('mkdirp')
 const Batch = require('batch')
 const debug = require('debug')('tiny-module-compiler')
 const path = require('path')
+const copy = require('cp-file')
 const glob = require('glob')
 const fs = require('fs')
 const os = require('os')
 
+const PACKAGE_JSON = 'package.json'
+const NODE_MODULES = 'node_modules'
+
+const usage = `usage: tmc [-hV] [-acu] [-vCDMOS] [options] ...input
+where options can be:
+
+  -a, --archive             If present, will archive input into "tinybox" format
+  -c, --compile             If present, will compile input into header prefixed v8 cached data
+    , --concurrency <jobs>  An alias for '--jobs'
+  -C, --copy-assets         If present, will copy assets to directory of output
+  -D, --debug               If present, will enable debug output (DEBUG=tiny-module-compiler)
+  -e, --external <module>   Specifies an external dependency that will be linked at runtime
+  -h, --help                If present, will print this message
+  -l, --load                If present, will load inputs
+  -j, --jobs <jobs>         Specifies the number of concurrent jobs for batch tasks (--load, --archive, --copy-assets)
+  -M, --source-map          If present, a source map will be generated
+  -o, --output <path>       If present, will change the output path. Assumes directory if multiple inputs given
+  -O, --optimize            If present, will optimize output by minifying JavaScript source prior to compilation
+  -u, --unpack              If present, will treat input as an archive and will unpack files to path specified by '--output'
+  -v, --verbose             If present, will emit verbose output to stdout/stderr
+  -V, --version             If present, will print the version number
+  -x                        An alias for '--external'
+`.trim()
+
 const argv = minimist(process.argv.slice(2), {
+  '--': true,
   boolean: [
     'archive',
     'compile',
@@ -22,12 +49,14 @@ const argv = minimist(process.argv.slice(2), {
     'load',
     'optimize',
     'source-map',
+    'strict',
     'unpack',
     'verbose',
     'version',
   ],
 
   string: [
+    'cwd',
     'output'
   ],
 
@@ -52,33 +81,19 @@ const argv = minimist(process.argv.slice(2), {
     M: 'source-map',
     O: 'optimize',
     o: 'output',
+    S: 'strict',
     u: 'unpack',
     v: 'verbose',
     V: 'version',
     x: 'external',
+  },
+
+  unknown(arg) {
+    console.error('error: unknown option: %s', arg)
+    process.nextTick(() => process.exit(1))
+    return false
   }
 })
-
-const usage = `usage: tmc [-hV] [-acu] [-vCDMO] [options] ...input
-where options can be:
-
-  -a, --archive             If present, will archive input into "tinybox" format
-  -c, --compile             If present, will compile input into header prefixed v8 cached data
-    , --concurrency <jobs>  An alias for '--jobs'
-  -C, --copy-assets         If present, will copy assets to directory of output
-  -D, --debug               If present, will enable debug output (DEBUG=tiny-module-compiler)
-  -e, --external <module>   Specifies an external dependency that will be linked at runtime
-  -h, --help                If present, will print this message
-  -l, --load                If present, will load inputs
-  -j, --jobs <jobs>         Specifies the number of concurrent jobs for batch tasks (--load, --archive, --copy-assets)
-  -M, --source-map          If present, a source map will be generated
-  -o, --output <path>       If present, will change the output path. Assumes directory if multiple inputs given
-  -O, --optimize            If present, will optimize output by minifying JavaScript source prior to compilation
-  -u, --unpack              If present, will treat input as an archive and will unpack files to path specified by '--output'
-  -v, --verbose             If present, will emit verbose output to stdout/stderr
-  -V, --version             If present, will print the version number
-  -x                        An alias for '--external'
-`.trim()
 
 if (argv.version) {
   console.log(version)
@@ -129,7 +144,7 @@ if (argv.compile || (!argv.archive && !argv.unpack && !argv.load)) { // default
     }
   }
 
-  compile(argv._, opts, (err, objects, assets) => {
+  compile(argv._, opts, (err, _, assets) => {
     if (err) {
       console.error('error:', err.message)
       debug(err)
@@ -149,6 +164,54 @@ if (argv.compile || (!argv.archive && !argv.unpack && !argv.load)) { // default
 
           fs.writeFile(filename, asset.source, opts, next)
         })
+      }
+
+      for (const external of opts.externals) {
+        writes.push((next) => {
+          try {
+            const modulePackagePathName = external + path.sep + PACKAGE_JSON
+            const modulePackagePath = require.resolve(modulePackagePathName)
+            const modulePath = path.dirname(modulePackagePath)
+
+            const cwd = argv.cwd || process.cwd()
+            const src = modulePath
+            const dst = cwd + path.sep + NODE_MODULES + path.sep + external
+
+            mkdirp.sync(path.dirname(dst))
+            mirror(src, dst, { ensureParents: true }, next)
+
+          } catch (err) {
+            try {
+              const cwd = argv.cwd || process.cwd()
+              const stats = fs.statSync(external)
+              if (stats && stats.isFile()) {
+                return copy(external, path.resolve(cwd, path.basename(external)))
+                  .then(() => next(), (err) => next(err))
+              } else if (stats && stats.isDirectory()) {
+                mkdirp.sync(path.join(cwd, path.basename(external)))
+                return mirror(
+                  external,
+                  path.join(cwd, path.basename(external)),
+                  { ensureParents: true },
+                  next)
+              }
+            } catch (err) {
+              debug(err)
+              if (argv.strict) {
+                return next(err)
+              }
+            }
+
+            debug(err)
+            if (argv.strict) {
+              return next(err)
+            }
+
+            console.warn(' warn: failed to copy external dependency asset:%s', external)
+            next(null)
+          }
+        })
+
       }
 
       writes.end((err) => {
