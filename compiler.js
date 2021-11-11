@@ -10,7 +10,7 @@ const magic = require('./magic')
 const ready = require('nanoresource-ready')
 const path = require('path')
 const raf = require('random-access-file')
-const ncc = require('@zeit/ncc')
+const ncc = require('@vercel/ncc')
 const vm = require('vm')
 
 // quick util
@@ -143,7 +143,6 @@ class Compiler extends Pool {
     try {
       for (const target of targets) {
         const { filename } = target
-        const extname = path.extname(filename)
         const basename = path.basename(filename)
         const targetName = path.resolve(target.output)
           .replace(path.join(path.resolve(this.cwd), path.sep), '')

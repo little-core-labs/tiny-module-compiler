@@ -9,7 +9,9 @@ test('unpack(target, callback)', (t) => {
   const target = filename + '.a'
   const cwd = process.cwd()
   compile(filename, (err, objects) => {
+    t.error(err)
     archive(target, objects, (err) => {
+      t.error(err)
       unpack(target, (err, entries) => {
         t.error(err)
         t.ok(Array.isArray(entries), 'entries')
@@ -28,7 +30,9 @@ test('unpack(target, callback) - from storage', (t) => {
   const target = filename + '.a'
   const cwd = process.cwd()
   compile(filename, { storag: ram }, (err, objects) => {
+    t.error(err)
     archive(target, objects, { storage }, (err) => {
+      t.error(err)
       unpack(storage, { storage: ram }, (err, entries) => {
         t.error(err)
         t.ok(Array.isArray(entries), 'entries')
